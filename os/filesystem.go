@@ -2,6 +2,17 @@ package os
 
 import "time"
 
+var root = directory{
+	metadata{
+		"",
+		0,
+		0755,
+		time.Now(),
+	},
+	&root, &root,
+	make([]FileInfo, 0),
+}
+
 type metadata struct {
 	name    string
 	size    int64
