@@ -1,77 +1,31 @@
 package os
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
-var root = directory{
-	metadata{
-		"",
-		0,
-		0755,
-		time.Now(),
-	},
-	&root, &root,
-	make([]FileInfo, 0),
-}
+var (
+	root *directory
 
-type metadata struct {
-	name    string
-	size    int64
-	mode    FileMode
-	modTime time.Time
-}
+	chdir sync.Mutex
+	cwd   *directory
+)
 
-func (m metadata) Name() string {
-	return m.Name()
-}
-
-func (m metadata) Size() int64 {
-	return m.size
-}
-
-func (m metadata) Mode() FileMode {
-	return m.mode
-}
-
-func (m metadata) IsDir() bool {
-	return m.mode.IsDir()
-}
-
-type file struct {
-	metadata
-	data []byte
-}
-
-func newFile(d *directory, name string, mode FileMode, modTime time.Time, contents []byte) {
-
-}
-
-func (f file) Sys() interface{} {
-	return f.data
-}
-
-type directory struct {
-	metadata
-	parent, self *directory
-	contents     []FileInfo
-}
-
-func newDirectory(d *directory, name string, mode FileMode, modTime time.Time, contents []FileInfo) {
-
-}
-
-func (d directory) Sys() interface{} {
-	return d.contents
-}
-
-type symbolic struct {
-	metadata
-	link string
-}
-
-func newSymbolic(d *directory, name string, mode FileMode, modTime time.Time, contents string) {
-
-}
-
-func (s symbolic) Sys() interface{} {
-	return s.link
+func init() {
+	root = directory{
+		metadata: *metadata{
+			"",
+			0,
+			ModeDir | 0755,
+			time.Now(),
+		},
+		contents: make([]FileInfo, 0),
+	}
+	root.self = root
+	root.parent = root
+	cwd = &root
+	Mkdir("temp", 0755)
+	Chmod("/", 0644)
+	ChDir("temp")
 }
