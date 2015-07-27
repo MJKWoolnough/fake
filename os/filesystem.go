@@ -90,6 +90,17 @@ func (d *directory) get(name string) (FileInfo, error) {
 	return fi, nil
 }
 
+func (d *directory) remove(name string) error {
+	if !d.canWrite() {
+		return ErrPermissions
+	}
+	if _, ok := d.Contents[name]; !ok {
+		return ErrNotExist
+	}
+	delete(d.Contents, name)
+	return nil
+}
+
 func (d *directory) Sys() interface{} {
 	return d.Contents
 }
