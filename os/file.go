@@ -2,6 +2,23 @@ package os
 
 import "unsafe"
 
+const (
+	O_RDONLY int = 0x0
+	O_WRONLY int = 0x1
+	O_RDWR   int = 0x2
+	O_APPEND int = 0x400
+	O_CREATE int = 0x40
+	O_EXCL   int = 0x80
+	O_SYNC   int = 0x101000
+	O_TRUNC  int = 0x200
+)
+
+const (
+	SEEK_CUR = 0
+	SEEK_SET = 1
+	SEEK_END = 2
+)
+
 type File struct {
 	fi   FileInfo
 	name string
