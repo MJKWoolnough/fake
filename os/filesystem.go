@@ -62,9 +62,9 @@ func (d *directory) setFile(f *file) {
 }
 
 func (d *directory) mkdir(name string, fileMode FileMode) error {
-	if _, ok := d.Contents[name]; ok {
+	if !d.canWrite() {
 		return ErrExists
-	} else if !d.canWrite() {
+	} else if _, ok := d.Contents[name]; ok {
 		return ErrPermissions
 	}
 	d.Contents[name] = &directory{
@@ -90,6 +90,10 @@ func (d *directory) get(name string) (FileInfo, error) {
 	return fi, nil
 }
 
+func (d *directory) Sys() interface{} {
+	return d.Contents
+}
+
 type file struct {
 	metadata
 	Contents []byte
@@ -105,4 +109,8 @@ func newFile(name string, modTime time.Time, fileMode FileMode, contents []byte)
 		},
 		contents,
 	}
+}
+
+func (f *file) Sys() interface{} {
+	return f.Contents
 }
