@@ -33,6 +33,18 @@ func (f FileMode) Perm() FileMode {
 	return f & ModePerm
 }
 
+func (f FileMode) canExecute() bool {
+	return f&0111 > 0
+}
+
+func (f FileMode) canWrite() bool {
+	return f&0222 > 0
+}
+
+func (f FileMode) canRead() bool {
+	return f&0444 > 0
+}
+
 func (f FileMode) String() string {
 	return ""
 }
