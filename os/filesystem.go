@@ -11,9 +11,9 @@ var (
 			ModDir | 0777,
 			time.Now(),
 			"",
+			root,
 		},
 		make(map[string]FileInfo),
-		root,
 	}
 	cwdmu sync.Mutex
 	cwd   *directory
@@ -25,36 +25,53 @@ func init() {
 	Chmod("/", 0555)
 }
 
-type metadata struct {
+type node struct {
 	FileMode
 	modTime time.Time
 	name    string
+	parent  *directory
 }
 
-func (m metadata) Name() string {
+func (n node) Name() string {
 	return m.name
 }
 
-func (m metadata) Mode() FileMode {
+func (n node) Mode() FileMode {
 	return m.FileMode
 }
 
-func (m metadata) ModTime() time.Time {
+func (n node) ModTime() time.Time {
 	return m.modTime
 }
 
-func (m *metadata) chmod(fileMode FileMode) {
+func (n *node) chmod(fileMode FileMode) {
 	m.FileMode = fileMode
 }
 
-func (m *metadata) setModTime(m time.Time) {
+func (n *node) setModTime(m time.Time) {
 	m.modTime = m
 }
 
+func (n *node) move(name string, d *directory) error {
+	if n.parent == nil {
+		return ErrInvalid
+	}
+	if !n.parent.canWrite() || !d.canWrite() {
+		return ErrPermissions
+	}
+	f, ok := n.parent.Contents[n.name]
+	if !ok {
+		return ErrInvalid
+	}
+	delete(n.parent.Contents, n.name)
+	n.parent = d
+	d.Contents[name] = f
+	return nil
+}
+
 type directory struct {
-	metadata
+	node
 	Contents map[string]FileInfo
-	Parent   *directory
 }
 
 func (d *directory) setFile(f *file) {
@@ -72,9 +89,9 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 			fileMode,
 			time.Now(),
 			"",
+			d,
 		},
 		make(map[string]FileInfo),
-		d,
 	}
 	return nil
 }
@@ -122,20 +139,8 @@ func (d *directory) Sys() interface{} {
 }
 
 type file struct {
-	metadata
+	node
 	Contents []byte
-}
-
-func newFile(name string, modTime time.Time, fileMode FileMode, contents []byte) *file {
-	return &file{
-		metadata{
-			name:     name,
-			modeTime: modeTime,
-			FileMode: fileMode | ModeDir,
-			"",
-		},
-		contents,
-	}
 }
 
 func (f *file) Sys() interface{} {
