@@ -8,6 +8,7 @@ var (
 	ErrExist       = errors.New("file already exists")
 	ErrNotExist    = errors.New("file does not exist")
 	ErrUnsupported = errors.New("unsupported feature")
+	ErrNotEmpty    = errors.New("directory not empty")
 )
 
 type PathError struct {

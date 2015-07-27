@@ -94,8 +94,14 @@ func (d *directory) remove(name string) error {
 	if !d.canWrite() {
 		return ErrPermissions
 	}
-	if _, ok := d.Contents[name]; !ok {
+	fi, ok := d.Contents[name]
+	if !ok {
 		return ErrNotExist
+	}
+	if fi.IsDir() {
+		if len(fi.(*directory).Contents) > 0 {
+			return ErrNotEmpty
+		}
 	}
 	delete(d.Contents, name)
 	return nil
