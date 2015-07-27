@@ -12,9 +12,9 @@ type FileInfo interface {
 }
 
 func Lstat(name string) (FileInfo, error) {
-	return nil, nil
+	return getFile(name)
 }
 
 func Stat(name string) (FileInfo, error) {
-	return nil, nil
+	return Lstat(name)
 }
