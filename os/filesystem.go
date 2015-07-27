@@ -90,7 +90,7 @@ func (d *directory) get(name string) (FileInfo, error) {
 	return fi, nil
 }
 
-func (d *directory) remove(name string) error {
+func (d *directory) remove(name string, all bool) error {
 	if !d.canWrite() {
 		return ErrPermissions
 	}
@@ -99,8 +99,18 @@ func (d *directory) remove(name string) error {
 		return ErrNotExist
 	}
 	if fi.IsDir() {
-		if len(fi.(*directory).Contents) > 0 {
-			return ErrNotEmpty
+		dir := fi.(*directory)
+		if len(dir.Contents) > 0 {
+			if all {
+				for name := range dir.Contents {
+					err := dir.remove(name, true)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				return ErrNotEmpty
+			}
 		}
 	}
 	delete(d.Contents, name)
