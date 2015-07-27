@@ -3,10 +3,11 @@ package os
 import "errors"
 
 var (
-	ErrInvalid    = errors.New("invalid argument")
-	ErrPermission = errors.New("permission denied")
-	ErrExist      = errors.New("file already exists")
-	ErrNotExist   = errors.New("file does not exist")
+	ErrInvalid     = errors.New("invalid argument")
+	ErrPermission  = errors.New("permission denied")
+	ErrExist       = errors.New("file already exists")
+	ErrNotExist    = errors.New("file does not exist")
+	ErrUnsupported = errors.New("unsupported feature")
 )
 
 type PathError struct {
