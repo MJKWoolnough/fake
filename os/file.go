@@ -27,7 +27,7 @@ type File struct {
 }
 
 func Create(name string) (*File, error) {
-	return OpenFile(name, O_RDWR|O_CREATE_O_TRUNC, 0666)
+	return OpenFile(name, O_RDWR|O_CREATE|_O_TRUNC, 0666)
 }
 
 func NewFile(fd uintptr, name string) *File {
