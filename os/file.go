@@ -132,12 +132,18 @@ func (f *File) Read(b []byte) (int, error) {
 	if err := f.validPath("read"); err != nil {
 		return err
 	}
+	if f.fi.IsDir() {
+		return ErrInvalid
+	}
 	return 0, nil
 }
 
 func (f *File) ReadAt(b []byte, off int64) (int, error) {
 	if err := f.validPath("read"); err != nil {
 		return err
+	}
+	if f.fi.IsDir() {
+		return ErrInvalid
 	}
 	return 0, nil
 }
@@ -146,6 +152,9 @@ func (f *File) Readdir(n int) ([]FileInfo, error) {
 	if err := f.valid(); err != nil {
 		return err
 	}
+	if !f.fi.IsDir() {
+		return ErrInvalid
+	}
 	return nil, nil
 }
 
@@ -153,12 +162,18 @@ func (f *File) Readdirnames(n int) ([]string, error) {
 	if err := f.valid(); err != nil {
 		return err
 	}
+	if !f.fi.IsDir() {
+		return ErrInvalid
+	}
 	return nil, nil
 }
 
 func (f *File) Seek(offset int64, whence int) (int64, error) {
 	if err := f.valid("seek"); err != nil {
 		return err
+	}
+	if f.fi.IsDir() {
+		return ErrInvalid
 	}
 	return 0, nil
 }
@@ -181,6 +196,9 @@ func (f *File) Truncate(size int64) error {
 	if err := f.valid("truncate"); err != nil {
 		return err
 	}
+	if f.fi.IsDir() {
+		return ErrInvalid
+	}
 	return nil
 }
 
@@ -188,12 +206,18 @@ func (f *File) Write(b []byte) (int, error) {
 	if err := f.valid("write"); err != nil {
 		return err
 	}
+	if f.fi.IsDir() {
+		return ErrInvalid
+	}
 	return 0, nil
 }
 
 func (f *File) WriteAt(b []byte, off int64) (int, error) {
 	if err := f.valid("write"); err != nil {
 		return err
+	}
+	if f.fi.IsDir() {
+		return ErrInvalid
 	}
 	return 0, nil
 }
