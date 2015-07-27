@@ -19,6 +19,15 @@ func (p *PathError) Error() string {
 	return p.Op + " " + p.Path + ": " + p.Err.Error()
 }
 
+type LinkError struct {
+	Op, Old, New string
+	Err          error
+}
+
+func (l *LinkError) Error() string {
+	return l.Op + " " + l.Old + " " + l.New + ": " + l.Err.Error()
+}
+
 func IsExist(err error) bool {
 	if p, ok := err.(*PathError); ok {
 		err = p.Err
