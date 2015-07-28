@@ -49,7 +49,7 @@ func (n *node) chmod(fileMode FileMode) {
 }
 
 func (n *node) setModTime(m time.Time) {
-	m.modTime = m
+	n.modTime = m
 }
 
 func (n *node) move(name string, d *directory) error {
