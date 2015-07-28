@@ -17,6 +17,7 @@ func navigateTo(p string) (*directory, error) {
 	}
 	for _, dir := range strings.Split(p, "/") {
 		switch dir {
+		case "":
 		case ".":
 		case "..":
 			d = d.parent
