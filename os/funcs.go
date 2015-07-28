@@ -7,6 +7,9 @@ import (
 )
 
 func navigateTo(p string) (*directory, error) {
+	if len(p) == 0 {
+		return cwd, nil
+	}
 	d := cwd
 	if p[0] == '/' {
 		d = root
