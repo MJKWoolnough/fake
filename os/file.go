@@ -1,6 +1,11 @@
 package os
 
-import "unsafe"
+import (
+	"io"
+	"unsafe"
+
+	"github.com/MJKWoolnough/memio"
+)
 
 const (
 	O_RDONLY int = 0x0
@@ -19,11 +24,105 @@ const (
 	SEEK_END = 2
 )
 
+type readWrite struct {
+	*memio.ReadWriteMem
+}
+
+func (readWrite) Readdir(_ int) ([]FileInfo, error) {
+	return nil, ErrInvalid
+}
+func (readWrite) Readdirnames(_ int) ([]string, error) {
+	return nil, ErrInvalid
+}
+
+type noWrite struct {
+	readWrite
+}
+
+func (noWrite) Write(_ []byte) (int, error) {
+	return 0, ErrPermission
+}
+
+func (noWrite) WriteAt(_ []byte, _ int64) (int, error) {
+	return 0, ErrPermission
+}
+
+type noRead struct {
+	readWrite
+}
+
+func (noRead) Read(_ []byte) (int, error) {
+	return 0, ErrPermission
+}
+
+func (noRead) ReadAt(_ []byte, _ int64) (int, error) {
+	return 0, ErrPermission
+}
+
+type directoryC struct {
+	contents []FileInfo
+}
+
+func (d *directoryC) Readdir(n int) ([]FileInfo, error) {
+	if len(d.contents) == 0 {
+		return d.contents, io.EOF
+	}
+	if n > len(d.contents) || n <= 0 {
+		c := d.contents
+		d.contents = d.contents[len(d.contents):]
+		return c, nil
+	}
+	c := d.contents[:n]
+	d.contents = d.contents[n:]
+	return c, nil
+}
+
+func (d *directoryC) Readdirnames(n int) ([]string, error) {
+	dirs, err := d.Readdir(n)
+	if err != nil {
+		return []string{}, err
+	}
+	names := make([]string, len(dirs))
+	for n, dir := range dirs {
+		names[n] = dir.Name()
+	}
+	return names, nil
+}
+
+func (directoryC) Write(_ []byte) (int, error) {
+	return 0, ErrInvalid
+}
+
+func (directoryC) WriteAt(_ []byte, _ int64) (int, error) {
+	return 0, ErrInvalid
+}
+
+func (directoryC) Read(_ []byte) (int, error) {
+	return 0, ErrInvalid
+}
+
+func (directoryC) ReadAt(_ []byte, _ int64) (int, error) {
+	return 0, ErrInvalid
+}
+
+func (directoryC) Seek(_ int64, _ int) (int64, error) {
+	return 0, ErrInvalid
+}
+
+type contents interface {
+	Read([]byte) (int, error)
+	ReadAt([]byte, int64) (int, error)
+	Readdir(int) ([]FileInfo, error)
+	Readdirnames(int) ([]string, error)
+	Seek(int64, int) (int64, error)
+	Write([]byte) (int, error)
+	WriteAt([]byte, int64) (int, error)
+}
+
 type File struct {
 	fi   FileInfo
 	name string
-	mode int
-	pos  int64
+	contents
 }
 
 func Create(name string) (*File, error) {
@@ -42,7 +141,7 @@ func Open(name string) (*File, error) {
 }
 
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
-	f, err := getFile(name)
+	/*if, err := getFile(name)
 	if err != nil {
 		return &PathError{
 			"open",
@@ -53,7 +152,10 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	return &File{
 		f,
 		name,
-	}
+		flag,
+		perm,
+	}*/
+	return nil, nil
 }
 
 func Pipe() (*File, *File, error) {
@@ -149,50 +251,35 @@ func (f *File) Read(b []byte) (int, error) {
 	if err := f.validPath("read"); err != nil {
 		return err
 	}
-	if f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return 0, nil
+	return f.contents.Read(b)
 }
 
 func (f *File) ReadAt(b []byte, off int64) (int, error) {
 	if err := f.validPath("read"); err != nil {
 		return err
 	}
-	if f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return 0, nil
+	return f.contents.ReadAt(b, off)
 }
 
 func (f *File) Readdir(n int) ([]FileInfo, error) {
 	if err := f.valid(); err != nil {
 		return err
 	}
-	if !f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return nil, nil
+	return f.contents.Readdir(n)
 }
 
 func (f *File) Readdirnames(n int) ([]string, error) {
 	if err := f.valid(); err != nil {
 		return err
 	}
-	if !f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return nil, nil
+	return f.contents.Readdirnames(n)
 }
 
 func (f *File) Seek(offset int64, whence int) (int64, error) {
 	if err := f.valid("seek"); err != nil {
 		return err
 	}
-	if f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return 0, nil
+	return f.contents.Seek(offset, whence)
 }
 
 func (f *File) Stat() (FileInfo, error) {
@@ -216,6 +303,7 @@ func (f *File) Truncate(size int64) error {
 	if f.fi.IsDir() {
 		return ErrInvalid
 	}
+	f.fi.(*file).Contents = nil
 	return nil
 }
 
@@ -223,20 +311,14 @@ func (f *File) Write(b []byte) (int, error) {
 	if err := f.valid("write"); err != nil {
 		return err
 	}
-	if f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return 0, nil
+	return f.contents.Write(p)
 }
 
 func (f *File) WriteAt(b []byte, off int64) (int, error) {
 	if err := f.valid("write"); err != nil {
 		return err
 	}
-	if f.fi.IsDir() {
-		return ErrInvalid
-	}
-	return 0, nil
+	return f.contents.WriteAt(p, off)
 }
 
 func (f *File) WriteString(s string) (int, error) {
