@@ -76,12 +76,25 @@ type directory struct {
 	Contents map[string]FileInfo
 }
 
+func namecheck(name string) error {
+	for _, c := range name {
+		switch c {
+		case '\x00', '/':
+			return ErrInvalid
+		}
+	}
+	return nil
+}
+
 func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
 	if !d.canWrite() {
 		return nil, ErrPermission
 	}
 	if f, ok := d.Contents[name]; ok {
 		return f, nil
+	}
+	if err := namecheck(name); err != nil {
+		return nil, err
 	}
 	f := &file{
 		node{
@@ -101,6 +114,9 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 		return ErrExist
 	} else if _, ok := d.Contents[name]; ok {
 		return ErrPermission
+	}
+	if err := namecheck(name); err != nil {
+		return err
 	}
 	d.Contents[name] = &directory{
 		node{
