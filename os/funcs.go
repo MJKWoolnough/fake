@@ -269,7 +269,7 @@ func RemoveAll(name string) error {
 	if err == nil {
 		err = d.remove(file, true)
 	}
-	if err != nil {
+	if err != nil && !IsNotExist(err) {
 		return &PathError{
 			"remove",
 			name,
