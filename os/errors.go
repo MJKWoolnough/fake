@@ -31,22 +31,31 @@ func (l *LinkError) Error() string {
 }
 
 func IsExist(err error) bool {
-	if p, ok := err.(*PathError); ok {
-		err = p.Err
+	switch e := err.(type) {
+	case *PathError:
+		err = e.Err
+	case *LinkError:
+		err = e.Err
 	}
 	return err == ErrExist
 }
 
 func IsNotExist(err error) bool {
-	if p, ok := err.(*PathError); ok {
-		err = p.Err
+	switch e := err.(type) {
+	case *PathError:
+		err = e.Err
+	case *LinkError:
+		err = e.Err
 	}
 	return err == ErrNotExist
 }
 
 func IsPermission(err error) bool {
-	if p, ok := err.(*PathError); ok {
-		err = p.Err
+	switch e := err.(type) {
+	case *PathError:
+		err = e.Err
+	case *LinkError:
+		err = e.Err
 	}
 	return err == ErrPermission
 }
