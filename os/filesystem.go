@@ -7,11 +7,11 @@ import (
 
 var (
 	root = &directory{
-		metadata{
-			ModDir | 0777,
+		node{
+			ModeDir | 0777,
 			time.Now(),
 			"",
-			root,
+			nil,
 		},
 		make(map[string]FileInfo),
 	}
@@ -20,8 +20,9 @@ var (
 )
 
 func init() {
+	root.parent = root
 	Mkdir("/tmp", 0777)
-	Cwd("/tmp")
+	Chdir("/tmp")
 	Chmod("/", 0555)
 }
 
@@ -33,19 +34,19 @@ type node struct {
 }
 
 func (n node) Name() string {
-	return m.name
+	return n.name
 }
 
 func (n node) Mode() FileMode {
-	return m.FileMode
+	return n.FileMode
 }
 
 func (n node) ModTime() time.Time {
-	return m.modTime
+	return n.modTime
 }
 
 func (n *node) chmod(fileMode FileMode) {
-	n.FileMode = fileMode | (n.FileMode & ModDir)
+	n.FileMode = fileMode | (n.FileMode & ModeDir)
 }
 
 func (n *node) setModTime(m time.Time) {
@@ -57,7 +58,7 @@ func (n *node) move(name string, d *directory) error {
 		return ErrInvalid
 	}
 	if !n.parent.canWrite() || !d.canWrite() {
-		return ErrPermissions
+		return ErrPermission
 	}
 	f, ok := n.parent.Contents[n.name]
 	if !ok {
@@ -74,33 +75,35 @@ type directory struct {
 	Contents map[string]FileInfo
 }
 
-func (d *directory) create(name string, perm FileMode) (*file, error) {
+func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
 	if !d.canWrite() {
-		return ErrPermissions
+		return nil, ErrPermission
 	}
 	if f, ok := d.Contents[name]; ok {
 		return f, nil
 	}
-	d.Contents[name] = &file{
+	f := &file{
 		node{
-			perm ^ ModDir,
+			perm ^ ModeDir,
 			time.Now(),
 			name,
 			d,
 		},
 		make([]byte, 0),
 	}
+	d.Contents[name] = f
+	return f, nil
 }
 
 func (d *directory) mkdir(name string, fileMode FileMode) error {
 	if !d.canWrite() {
-		return ErrExists
+		return ErrExist
 	} else if _, ok := d.Contents[name]; ok {
-		return ErrPermissions
+		return ErrPermission
 	}
 	d.Contents[name] = &directory{
-		metadata{
-			fileMode | ModDir,
+		node{
+			fileMode | ModeDir,
 			time.Now(),
 			"",
 			d,
@@ -112,7 +115,7 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 
 func (d *directory) get(name string) (FileInfo, error) {
 	if !d.canExecute() {
-		return nil, ErrPermissions
+		return nil, ErrPermission
 	}
 	fi, ok := d.Contents[name]
 	if !ok {
@@ -123,7 +126,7 @@ func (d *directory) get(name string) (FileInfo, error) {
 
 func (d *directory) remove(name string, all bool) error {
 	if !d.canWrite() {
-		return ErrPermissions
+		return ErrPermission
 	}
 	fi, ok := d.Contents[name]
 	if !ok {
@@ -148,6 +151,10 @@ func (d *directory) remove(name string, all bool) error {
 	return nil
 }
 
+func (d *directory) Size() int64 {
+	return 0
+}
+
 func (d *directory) Sys() interface{} {
 	return &d.Contents
 }
@@ -155,6 +162,10 @@ func (d *directory) Sys() interface{} {
 type file struct {
 	node
 	Contents []byte
+}
+
+func (f *file) Size() int64 {
+	return int64(len(f.Contents))
 }
 
 func (f *file) Sys() interface{} {

@@ -66,7 +66,7 @@ type directoryC struct {
 }
 
 func (d directoryC) Len() int {
-	return len(d.Contents)
+	return len(d.contents)
 }
 
 func (d directoryC) Less(i, j int) bool {
@@ -155,14 +155,14 @@ func Open(name string) (*File, error) {
 }
 
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
-	dir, file := p.Split(path.Clean(p))
+	dir, file := path.Split(path.Clean(name))
 	d, err := navigateTo(dir)
 	var f FileInfo
 	if err == nil {
 		f, err = d.get(file)
 		if flag&O_CREATE != 0 {
 			if IsNotExist(err) {
-				f, err = d.createFile(name, perm)
+				f, err = d.create(name, perm)
 			} else if flag&O_EXCL != 0 {
 				err = ErrExist
 			}
@@ -179,16 +179,16 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	if f.IsDir() {
 		m := f.Sys().(map[string]FileInfo)
 		list := make([]FileInfo, 0, len(m))
-		for name := range m {
-			list = append(list, name)
+		for _, fi := range m {
+			list = append(list, fi)
 		}
 		d := directoryC{list}
 		sort.Sort(d)
 		c = &d
 	} else {
-		rw = memio.OpenMem(f.Sys().(*[]byte))
+		rw := readWrite{memio.OpenMem(f.Sys().(*[]byte))}
 		if flag&O_TRUNC != 0 {
-			rw.Truncate()
+			//rw.Truncate()
 		}
 		if flag&O_APPEND != 0 {
 			rw.Seek(2, 0)
@@ -291,63 +291,63 @@ func (f *File) Fd() uintptr {
 }
 
 func (f *File) Name() string {
-	if err := f.validPath("name"); err != nil {
-		return err
+	if f == nil {
+		return ""
 	}
 	return f.name
 }
 
 func (f *File) Read(b []byte) (int, error) {
 	if err := f.validPath("read"); err != nil {
-		return err
+		return 0, err
 	}
 	return f.contents.Read(b)
 }
 
 func (f *File) ReadAt(b []byte, off int64) (int, error) {
 	if err := f.validPath("read"); err != nil {
-		return err
+		return 0, err
 	}
 	return f.contents.ReadAt(b, off)
 }
 
 func (f *File) Readdir(n int) ([]FileInfo, error) {
 	if err := f.valid(); err != nil {
-		return err
+		return []FileInfo{}, err
 	}
 	return f.contents.Readdir(n)
 }
 
 func (f *File) Readdirnames(n int) ([]string, error) {
 	if err := f.valid(); err != nil {
-		return err
+		return []string{}, err
 	}
 	return f.contents.Readdirnames(n)
 }
 
 func (f *File) Seek(offset int64, whence int) (int64, error) {
-	if err := f.valid("seek"); err != nil {
-		return err
+	if err := f.validPath("seek"); err != nil {
+		return 0, err
 	}
 	return f.contents.Seek(offset, whence)
 }
 
 func (f *File) Stat() (FileInfo, error) {
-	if err := f.valid("stat"); err != nil {
-		return err
+	if err := f.validPath("stat"); err != nil {
+		return nil, err
 	}
 	return f.fi, nil
 }
 
 func (f *File) Sync() error {
-	if err := f.valid("fsync"); err != nil {
+	if err := f.validPath("fsync"); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (f *File) Truncate(size int64) error {
-	if err := f.valid("truncate"); err != nil {
+	if err := f.validPath("truncate"); err != nil {
 		return err
 	}
 	if f.fi.IsDir() {
@@ -358,17 +358,17 @@ func (f *File) Truncate(size int64) error {
 }
 
 func (f *File) Write(b []byte) (int, error) {
-	if err := f.valid("write"); err != nil {
-		return err
+	if err := f.validPath("write"); err != nil {
+		return 0, err
 	}
-	return f.contents.Write(p)
+	return f.contents.Write(b)
 }
 
 func (f *File) WriteAt(b []byte, off int64) (int, error) {
-	if err := f.valid("write"); err != nil {
-		return err
+	if err := f.validPath("write"); err != nil {
+		return 0, err
 	}
-	return f.contents.WriteAt(p, off)
+	return f.contents.WriteAt(b, off)
 }
 
 func (f *File) WriteString(s string) (int, error) {

@@ -16,7 +16,7 @@ func navigateTo(p string) (*directory, error) {
 		switch dir {
 		case ".":
 		case "..":
-			d = d.Parent
+			d = d.parent
 		default:
 			fi, err := d.get(dir)
 			if err != nil {
@@ -28,14 +28,14 @@ func navigateTo(p string) (*directory, error) {
 			d = fi.(*directory)
 		}
 	}
-	return d
+	return d, nil
 }
 
 func getFile(p string) (FileInfo, error) {
-	dir, file := p.Split(path.Clean(p))
+	dir, file := path.Split(path.Clean(p))
 	d, err := navigateTo(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return d.get(file)
 }
@@ -91,7 +91,7 @@ func Chtimes(p string, _, mtime time.Time) error {
 	type i interface {
 		setModTime(time.Time)
 	}
-	f.(i).chmod(mode)
+	f.(i).setModTime(mtime)
 	return nil
 }
 
@@ -128,7 +128,7 @@ func Geteuid() int {
 }
 
 func Getgid() int {
-	0
+	return 0
 }
 
 func GetGroups() ([]int, error) {
@@ -155,8 +155,8 @@ func Getwd() (string, error) {
 	d := cwd
 	names := make([]string, 1, 32)
 	names[0] = d.Name()
-	for d != d.Parent {
-		d = d.Parent
+	for d != d.parent {
+		d = d.parent
 		names = append(names, d.Name())
 	}
 	l := len(names) - 1
@@ -195,7 +195,7 @@ func Mkdir(p string, fileMode FileMode) error {
 	dir, toMake := path.Split(path.Clean(p))
 	d, err := navigateTo(dir)
 	if err == nil {
-		err = dir.mkdir(toMake, fileMode)
+		err = d.mkdir(toMake, fileMode)
 	}
 	if err != nil {
 		return &PathError{
@@ -216,7 +216,7 @@ func MkdirAll(p string, fileMode FileMode) error {
 	}
 	for _, dir := range strings.Split(p, "/") {
 		err := d.mkdir(dir, fileMode)
-		if IsPermissions(err) {
+		if IsPermission(err) {
 			return &PathError{
 				"mkdirall",
 				p,
@@ -240,10 +240,10 @@ func Readlink(name string) (string, error) {
 }
 
 func Remove(name string) error {
-	dir, file := p.Split(path.Clean(p))
+	dir, file := path.Split(path.Clean(name))
 	d, err := navigateTo(dir)
 	if err == nil {
-		err = dir.remove(file, false)
+		err = d.remove(file, false)
 	}
 	if err != nil {
 		return &PathError{
@@ -256,10 +256,10 @@ func Remove(name string) error {
 }
 
 func RemoveAll(name string) error {
-	dir, file := p.Split(path.Clean(p))
+	dir, file := path.Split(path.Clean(name))
 	d, err := navigateTo(dir)
 	if err == nil {
-		err = dir.remove(file, true)
+		err = d.remove(file, true)
 	}
 	if err != nil {
 		return &PathError{
@@ -272,21 +272,18 @@ func RemoveAll(name string) error {
 }
 
 func Rename(oldpath, newpath string) error {
-	olddir, oldfile := p.Split(path.Clean(oldpath))
-	newdir, newfile := p.Split(path.Clean(newpath))
+	olddir, oldfile := path.Split(path.Clean(oldpath))
+	newdir, newfile := path.Split(path.Clean(newpath))
 	oldd, err := navigateTo(olddir)
-	var (
-		newd *directory
-		f    FileInfo
-	)
 	if err == nil {
+		var newd *directory
 		newd, err = navigateTo(newdir)
 		f, err := oldd.get(oldfile)
 		if err == nil {
 			type i interface {
 				move(string, *directory) error
 			}
-			err = f.(i).move(newfile, newdir)
+			err = f.(i).move(newfile, newd)
 		}
 	}
 	if err != nil {
