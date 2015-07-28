@@ -158,6 +158,13 @@ func Open(name string) (*File, error) {
 }
 
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+	if name == "" {
+		return nil, &PathError{
+			"open",
+			name,
+			ErrInvalid,
+		}
+	}
 	dir, file := path.Split(path.Clean(name))
 	if file == "" {
 		file = "."
@@ -183,6 +190,13 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	}
 	var c contents
 	if f.IsDir() {
+		if flag&O_WRONLY != 0 {
+			return nil, &PathError{
+				"open",
+				name,
+				ErrIsDir,
+			}
+		}
 		m := f.Sys().(map[string]FileInfo)
 		list := make([]FileInfo, 0, len(m))
 		for _, fi := range m {

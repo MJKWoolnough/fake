@@ -27,7 +27,7 @@ func navigateTo(p string) (*directory, error) {
 				return nil, err
 			}
 			if !fi.IsDir() {
-				return nil, ErrInvalid
+				return nil, ErrIsNotDir
 			}
 			d = fi.(*directory)
 		}
