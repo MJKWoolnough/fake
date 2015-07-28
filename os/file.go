@@ -79,6 +79,9 @@ func (d directoryC) Swap(i, j int) {
 
 func (d *directoryC) Readdir(n int) ([]FileInfo, error) {
 	if len(d.contents) == 0 {
+		if n <= 0 {
+			return []FileInfo{}, nil
+		}
 		return d.contents, io.EOF
 	}
 	if n > len(d.contents) || n <= 0 {
