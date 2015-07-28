@@ -300,6 +300,9 @@ func (f *File) Chown(_, _ int) error {
 }
 
 func (f *File) Close() error {
+	if f == nil {
+		return ErrInvalid
+	}
 	f.fi = nil
 	return nil
 }
