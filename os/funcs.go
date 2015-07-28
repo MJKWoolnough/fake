@@ -134,7 +134,7 @@ func Getgid() int {
 	return 0
 }
 
-func GetGroups() ([]int, error) {
+func Getgroups() ([]int, error) {
 	return []int{}, nil
 }
 
