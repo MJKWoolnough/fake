@@ -206,9 +206,10 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		sort.Sort(d)
 		c = &d
 	} else {
-		rw := readWrite{memio.OpenMem(f.Sys().(*[]byte))}
+		b := f.Sys().(*[]byte)
+		rw := readWrite{memio.OpenMem(b)}
 		if flag&O_TRUNC != 0 {
-			//rw.Truncate()
+			*b = (*b)[:0]
 		}
 		if flag&O_APPEND != 0 {
 			rw.Seek(0, 2)
