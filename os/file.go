@@ -2,6 +2,8 @@ package os
 
 import (
 	"io"
+	"path"
+	"sort"
 	"unsafe"
 
 	"github.com/MJKWoolnough/memio"
@@ -61,6 +63,18 @@ func (noRead) ReadAt(_ []byte, _ int64) (int, error) {
 
 type directoryC struct {
 	contents []FileInfo
+}
+
+func (d directoryC) Len() int {
+	return len(d.Contents)
+}
+
+func (d directoryC) Less(i, j int) bool {
+	return d.contents[i].ModTime().Before(d.contents[i].ModTime())
+}
+
+func (d directoryC) Swap(i, j int) {
+	d.contents[i], d.contents[j] = d.contents[j], d.contents[i]
 }
 
 func (d *directoryC) Readdir(n int) ([]FileInfo, error) {
@@ -126,7 +140,7 @@ type File struct {
 }
 
 func Create(name string) (*File, error) {
-	return OpenFile(name, O_RDWR|O_CREATE|_O_TRUNC, 0666)
+	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
 func NewFile(fd uintptr, name string) *File {
@@ -141,21 +155,57 @@ func Open(name string) (*File, error) {
 }
 
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
-	/*if, err := getFile(name)
+	dir, file := p.Split(path.Clean(p))
+	d, err := navigateTo(dir)
+	var f FileInfo
+	if err == nil {
+		f, err = d.get(file)
+		if flag&O_CREATE != 0 {
+			if IsNotExist(err) {
+				f, err = d.createFile(name, perm)
+			} else if flag&O_EXCL != 0 {
+				err = ErrExist
+			}
+		}
+	}
 	if err != nil {
-		return &PathError{
+		return nil, &PathError{
 			"open",
 			name,
 			err,
 		}
 	}
+	var c contents
+	if f.IsDir() {
+		m := f.Sys().(map[string]FileInfo)
+		list := make([]FileInfo, 0, len(m))
+		for name := range m {
+			list = append(list, name)
+		}
+		d := directoryC{list}
+		sort.Sort(d)
+		c = &d
+	} else {
+		rw = memio.OpenMem(f.Sys().(*[]byte))
+		if flag&O_TRUNC != 0 {
+			rw.Truncate()
+		}
+		if flag&O_APPEND != 0 {
+			rw.Seek(2, 0)
+		}
+		if flag&O_RDWR != 0 {
+			c = rw
+		} else if flag&O_WRONLY != 0 {
+			c = noRead{rw}
+		} else {
+			c = noWrite{rw}
+		}
+	}
 	return &File{
 		f,
 		name,
-		flag,
-		perm,
-	}*/
-	return nil, nil
+		c,
+	}, nil
 }
 
 func Pipe() (*File, *File, error) {
