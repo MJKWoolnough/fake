@@ -328,7 +328,13 @@ func Truncate(name string, size int64) error {
 	if err == nil {
 		if f, ok := f.(*file); ok {
 			if f.canWrite() {
-				f.Contents = f.Contents[:size]
+				if size < int64(len(f.Contents)) {
+					f.Contents = f.Contents[:size]
+				} else {
+					c := f.Contents
+					f.Contents = make([]byte, size)
+					copy(f.Contents, c)
+				}
 			} else {
 				err = ErrPermission
 			}

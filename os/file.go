@@ -356,7 +356,14 @@ func (f *File) Truncate(size int64) error {
 	if f.fi.IsDir() {
 		return ErrInvalid
 	}
-	f.fi.(*file).Contents = nil
+	fi := f.fi.(*file)
+	if size < int64(len(fi.Contents)) {
+		fi.Contents = fi.Contents[:size]
+	} else {
+		c := fi.Contents
+		fi.Contents = make([]byte, size)
+		copy(fi.Contents, c)
+	}
 	return nil
 }
 
