@@ -70,7 +70,7 @@ func (d directoryC) Len() int {
 }
 
 func (d directoryC) Less(i, j int) bool {
-	return d.contents[i].ModTime().Before(d.contents[i].ModTime())
+	return d.contents[i].Name() < d.contents[j].Name()
 }
 
 func (d directoryC) Swap(i, j int) {
