@@ -74,8 +74,22 @@ type directory struct {
 	Contents map[string]FileInfo
 }
 
-func (d *directory) setFile(f *file) {
-	d.Contents[f.name] = f
+func (d *directory) create(name string, perm FileMode) (*file, error) {
+	if !d.canWrite() {
+		return ErrPermissions
+	}
+	if f, ok := d.Contents[name]; ok {
+		return f, nil
+	}
+	d.Contents[name] = &file{
+		node{
+			perm ^ ModDir,
+			time.Now(),
+			name,
+			d,
+		},
+		make([]byte, 0),
+	}
 }
 
 func (d *directory) mkdir(name string, fileMode FileMode) error {
@@ -86,7 +100,7 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 	}
 	d.Contents[name] = &directory{
 		metadata{
-			fileMode,
+			fileMode | ModDir,
 			time.Now(),
 			"",
 			d,
