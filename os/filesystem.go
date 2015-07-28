@@ -24,7 +24,6 @@ func init() {
 	cwd = root
 	Mkdir("/tmp", 0777)
 	Chdir("/tmp")
-	Chmod("/", 0555)
 }
 
 type node struct {
@@ -109,16 +108,17 @@ func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
 	return f, nil
 }
 
-func (d *directory) mkdir(name string, fileMode FileMode) error {
+func (d *directory) mkdir(name string, fileMode FileMode) (*directory, error) {
 	if !d.canWrite() {
-		return ErrExist
-	} else if _, ok := d.Contents[name]; ok {
-		return ErrPermission
+		return nil, ErrExist
+	}
+	if _, ok := d.Contents[name]; ok {
+		return nil, ErrPermission
 	}
 	if err := namecheck(name); err != nil {
-		return err
+		return nil, err
 	}
-	d.Contents[name] = &directory{
+	e := &directory{
 		node{
 			fileMode | ModeDir,
 			time.Now(),
@@ -127,7 +127,8 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 		},
 		make(map[string]FileInfo),
 	}
-	return nil
+	d.Contents[name] = e
+	return e, nil
 }
 
 func (d *directory) get(name string) (FileInfo, error) {

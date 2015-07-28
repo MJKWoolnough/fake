@@ -199,7 +199,7 @@ func Mkdir(p string, fileMode FileMode) error {
 	dir, toMake := path.Split(path.Clean(p))
 	d, err := navigateTo(dir)
 	if err == nil {
-		err = d.mkdir(toMake, fileMode)
+		_, err = d.mkdir(toMake, fileMode)
 	}
 	if err != nil {
 		return &PathError{
@@ -218,8 +218,9 @@ func MkdirAll(p string, fileMode FileMode) error {
 		d = root
 		p = p[1:]
 	}
+	var err error
 	for _, dir := range strings.Split(p, "/") {
-		err := d.mkdir(dir, fileMode)
+		d, err = d.mkdir(dir, fileMode)
 		if IsPermission(err) {
 			return &PathError{
 				"mkdirall",
