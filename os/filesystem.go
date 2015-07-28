@@ -135,7 +135,7 @@ func (d *directory) remove(name string, all bool) error {
 }
 
 func (d *directory) Sys() interface{} {
-	return d.Contents
+	return &d.Contents
 }
 
 type file struct {
@@ -144,5 +144,5 @@ type file struct {
 }
 
 func (f *file) Sys() interface{} {
-	return f.Contents
+	return &f.Contents
 }
