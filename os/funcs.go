@@ -156,6 +156,9 @@ func Getuid() int {
 }
 
 func Getwd() (string, error) {
+	if cwd == root {
+		return "/", nil
+	}
 	d := cwd
 	names := make([]string, 1, 32)
 	names[0] = d.Name()
@@ -163,9 +166,9 @@ func Getwd() (string, error) {
 		d = d.parent
 		names = append(names, d.Name())
 	}
-	l := len(names) - 1
-	for i := 0; i < l>>1-1; i++ {
-		names[i], names[l-i] = names[l-i], names[i]
+	l := len(names)
+	for i := 0; i < l>>1; i++ {
+		names[i], names[l-i-1] = names[l-i-1], names[i]
 	}
 	return strings.Join(names, "/"), nil
 }
