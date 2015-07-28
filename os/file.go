@@ -159,6 +159,9 @@ func Open(name string) (*File, error) {
 
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	dir, file := path.Split(path.Clean(name))
+	if file == "" {
+		file = "."
+	}
 	d, err := navigateTo(dir)
 	var f FileInfo
 	if err == nil {
