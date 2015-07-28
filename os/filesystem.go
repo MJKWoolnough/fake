@@ -21,6 +21,7 @@ var (
 
 func init() {
 	root.parent = root
+	cwd = root
 	Mkdir("/tmp", 0777)
 	Chdir("/tmp")
 	Chmod("/", 0555)
@@ -84,7 +85,7 @@ func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
 	}
 	f := &file{
 		node{
-			perm ^ ModeDir,
+			perm &^ ModeDir,
 			time.Now(),
 			name,
 			d,
@@ -105,7 +106,7 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 		node{
 			fileMode | ModeDir,
 			time.Now(),
-			"",
+			name,
 			d,
 		},
 		make(map[string]FileInfo),
@@ -116,6 +117,12 @@ func (d *directory) mkdir(name string, fileMode FileMode) error {
 func (d *directory) get(name string) (FileInfo, error) {
 	if !d.canExecute() {
 		return nil, ErrPermission
+	}
+	switch name {
+	case ".":
+		return d, nil
+	case "..":
+		return d.parent, nil
 	}
 	fi, ok := d.Contents[name]
 	if !ok {
@@ -156,7 +163,7 @@ func (d *directory) Size() int64 {
 }
 
 func (d *directory) Sys() interface{} {
-	return &d.Contents
+	return d.Contents
 }
 
 type file struct {
