@@ -211,7 +211,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 			//rw.Truncate()
 		}
 		if flag&O_APPEND != 0 {
-			rw.Seek(2, 0)
+			rw.Seek(0, 2)
 		}
 		if flag&O_RDWR != 0 {
 			c = rw
