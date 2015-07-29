@@ -17,9 +17,11 @@ func navigateTo(p string) (*directory, error) {
 	}
 	for _, dir := range strings.Split(p, "/") {
 		switch dir {
-		case "":
-		case ".":
+		case "", ".":
 		case "..":
+			if !d.parent.canRead() {
+				return nil, ErrPermission
+			}
 			d = d.parent
 		default:
 			fi, err := d.get(dir)
