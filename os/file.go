@@ -189,6 +189,13 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		}
 	}
 	var c contents
+	if (!f.Mode().canWrite() && flag&(O_RDWR|O_APPEND|O_TRUNC|O_WRONLY) != 0) || (!f.Mode().canRead() && flag&(O_RDWR|O_RDWR) != 0) {
+		return nil, &PathError{
+			"open",
+			name,
+			ErrPermission,
+		}
+	}
 	if f.IsDir() {
 		if flag&O_WRONLY != 0 {
 			return nil, &PathError{
