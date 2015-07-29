@@ -45,8 +45,12 @@ func (n node) ModTime() time.Time {
 	return n.modTime
 }
 
-func (n *node) chmod(fileMode FileMode) {
+func (n *node) chmod(fileMode FileMode) error {
+	if n.FileMode.isSpecial() {
+		return ErrPermission
+	}
 	n.FileMode = fileMode | (n.FileMode & ModeDir)
+	return nil
 }
 
 func (n *node) setModTime(m time.Time) {

@@ -61,6 +61,12 @@ func Chdir(p string) error {
 
 func Chmod(p string, mode FileMode) error {
 	f, err := getFile(p)
+	if err == nil {
+		type i interface {
+			chmod(FileMode) error
+		}
+		err = f.(i).chmod(mode)
+	}
 	if err != nil {
 		return &PathError{
 			"chmod",
@@ -68,10 +74,6 @@ func Chmod(p string, mode FileMode) error {
 			err,
 		}
 	}
-	type i interface {
-		chmod(FileMode)
-	}
-	f.(i).chmod(mode)
 	return nil
 }
 

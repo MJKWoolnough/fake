@@ -282,9 +282,15 @@ func (f *File) Chmod(mode FileMode) error {
 		}
 	}
 	type i interface {
-		chmod(FileMode)
+		chmod(FileMode) error
 	}
-	f.fi.(i).chmod(mode)
+	if err := f.fi.(i).chmod(mode); err != nil {
+		return &PathError{
+			"chmod",
+			f.name,
+			err,
+		}
+	}
 	return nil
 }
 

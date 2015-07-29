@@ -14,6 +14,7 @@ const (
 	ModeSetgid
 	ModeCharDevice
 	ModeSticky
+	ModeSpecial
 
 	ModeType          = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
 	ModePerm FileMode = 0777
@@ -43,6 +44,10 @@ func (f FileMode) canWrite() bool {
 
 func (f FileMode) canRead() bool {
 	return f&0444 > 0
+}
+
+func (f FileMode) isSpecial() bool {
+	return f&ModeSpecial != 0
 }
 
 func (f FileMode) String() string {
