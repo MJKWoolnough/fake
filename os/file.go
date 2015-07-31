@@ -3,7 +3,6 @@ package os
 import (
 	"io"
 	"path"
-	"sort"
 	"unsafe"
 
 	"github.com/MJKWoolnough/memio"
@@ -188,7 +187,6 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 			err,
 		}
 	}
-	var c contents
 	if (!f.Mode().canWrite() && flag&(O_RDWR|O_APPEND|O_TRUNC|O_WRONLY) != 0) || (!f.Mode().canRead() && flag&(O_RDWR|O_RDWR) != 0) {
 		return nil, &PathError{
 			"open",
@@ -196,37 +194,15 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 			ErrPermission,
 		}
 	}
-	if f.IsDir() {
-		if flag&O_WRONLY != 0 {
-			return nil, &PathError{
-				"open",
-				name,
-				ErrIsDir,
-			}
-		}
-		m := f.Sys().(map[string]FileInfo)
-		list := make([]FileInfo, 0, len(m))
-		for _, fi := range m {
-			list = append(list, fi)
-		}
-		d := directoryC{list}
-		sort.Sort(d)
-		c = &d
-	} else {
-		b := f.Sys().(*[]byte)
-		rw := readWrite{memio.OpenMem(b)}
-		if flag&O_TRUNC != 0 {
-			*b = (*b)[:0]
-		}
-		if flag&O_APPEND != 0 {
-			rw.Seek(0, 2)
-		}
-		if flag&O_RDWR != 0 {
-			c = rw
-		} else if flag&O_WRONLY != 0 {
-			c = noRead{rw}
-		} else {
-			c = noWrite{rw}
+	type i interface {
+		getContents(int) (contents, error)
+	}
+	c, err := f.(i).getContents(flag)
+	if err != nil {
+		return nil, &PathError{
+			"open",
+			name,
+			err,
 		}
 	}
 	return &File{
@@ -390,7 +366,10 @@ func (f *File) Truncate(size int64) error {
 	if f.fi.IsDir() {
 		return ErrInvalid
 	}
-	fi := f.fi.(*file)
+	fi, ok := f.fi.(*file)
+	if !ok {
+		return ErrInvalid
+	}
 	if size < int64(len(fi.Contents)) {
 		fi.Contents = fi.Contents[:size]
 	} else {

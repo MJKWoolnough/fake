@@ -1,8 +1,11 @@
 package os
 
 import (
+	"sort"
 	"sync"
 	"time"
+
+	"github.com/MJKWoolnough/memio"
 )
 
 var (
@@ -187,6 +190,19 @@ func (d *directory) Sys() interface{} {
 	return d.Contents
 }
 
+func (d *directory) getContents(flag int) (contents, error) {
+	if flag&O_WRONLY != 0 {
+		return nil, ErrIsDir
+	}
+	list := make([]FileInfo, 0, len(d.Contents))
+	for _, fi := range d.Contents {
+		list = append(list, fi)
+	}
+	dir := &directoryC{list}
+	sort.Sort(dir)
+	return dir, nil
+}
+
 type file struct {
 	node
 	Contents []byte
@@ -198,4 +214,21 @@ func (f *file) Size() int64 {
 
 func (f *file) Sys() interface{} {
 	return &f.Contents
+}
+
+func (f *file) getContents(flag int) (contents, error) {
+	rw := readWrite{memio.OpenMem(&f.Contents)}
+	if flag&O_TRUNC != 0 {
+		f.Contents = f.Contents[:0]
+	}
+	if flag&O_APPEND != 0 {
+		rw.Seek(0, 2)
+	}
+	if flag&O_RDWR != 0 {
+		return rw, nil
+	}
+	if flag&O_WRONLY != 0 {
+		return noRead{rw}, nil
+	}
+	return noWrite{rw}, nil
 }
