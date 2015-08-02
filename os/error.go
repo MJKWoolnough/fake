@@ -1,12 +1,15 @@
 package os
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 var (
-	ErrInvalid     = errors.New("invalid argument")
-	ErrPermission  = errors.New("permission denied")
-	ErrExist       = errors.New("file already exists")
-	ErrNotExist    = errors.New("file does not exist")
+	ErrInvalid     = os.ErrInvalid
+	ErrPermission  = os.ErrPermission
+	ErrExist       = os.ErrExist
+	ErrNotExist    = os.ErrNotExist
 	ErrUnsupported = errors.New("unsupported feature")
 	ErrNotEmpty    = errors.New("directory not empty")
 	ErrClosed      = errors.New("file closed")

@@ -1,6 +1,7 @@
 package os
 
 import (
+	"os"
 	"path"
 	"reflect"
 	"strings"
@@ -8,7 +9,7 @@ import (
 	"unsafe"
 )
 
-func WriteBytes(p string, perm FileMode, data []byte) {
+func WriteBytes(p string, perm os.FileMode, data []byte) {
 	var filename string
 	p, filename = path.Split(path.Clean(p))
 	if len(p) == 0 {
@@ -29,12 +30,12 @@ func WriteBytes(p string, perm FileMode, data []byte) {
 			if !ok || !fi.IsDir() {
 				e := &directory{
 					node{
-						ModeDir | 0777,
+						os.ModeDir | 0777,
 						time.Now(),
 						dir,
 						d,
 					},
-					make(map[string]FileInfo),
+					make(map[string]os.FileInfo),
 				}
 				d.Contents[dir] = e
 				d = e
@@ -56,5 +57,5 @@ func WriteBytes(p string, perm FileMode, data []byte) {
 
 func WriteString(p, data string) {
 	s := (*reflect.StringHeader)(unsafe.Pointer(&data))
-	WriteBytes(p, ModeSpecial|0400, *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{s.Data, s.Len, s.Len})))
+	WriteBytes(p, 0400, *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{s.Data, s.Len, s.Len})))
 }

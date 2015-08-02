@@ -1,20 +1,11 @@
 package os
 
-import "time"
+import "os"
 
-type FileInfo interface {
-	Name() string
-	Size() int64
-	Mode() FileMode
-	ModTime() time.Time
-	IsDir() bool
-	Sys() interface{}
-}
-
-func Lstat(name string) (FileInfo, error) {
+func Lstat(name string) (os.FileInfo, error) {
 	return getFile(name)
 }
 
-func Stat(name string) (FileInfo, error) {
+func Stat(name string) (os.FileInfo, error) {
 	return Lstat(name)
 }

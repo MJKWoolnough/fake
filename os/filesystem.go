@@ -1,6 +1,7 @@
 package os
 
 import (
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -11,12 +12,12 @@ import (
 var (
 	root = &directory{
 		node{
-			ModeDir | 0777,
+			os.ModeDir | 0777,
 			time.Now(),
 			"",
 			nil,
 		},
-		make(map[string]FileInfo),
+		make(map[string]os.FileInfo),
 	}
 	cwdmu sync.Mutex
 	cwd   *directory
@@ -30,7 +31,7 @@ func init() {
 }
 
 type node struct {
-	FileMode
+	os.FileMode
 	modTime time.Time
 	name    string
 	parent  *directory
@@ -40,7 +41,7 @@ func (n node) Name() string {
 	return n.name
 }
 
-func (n node) Mode() FileMode {
+func (n node) Mode() os.FileMode {
 	return n.FileMode
 }
 
@@ -48,11 +49,8 @@ func (n node) ModTime() time.Time {
 	return n.modTime
 }
 
-func (n *node) chmod(fileMode FileMode) error {
-	if n.FileMode.isSpecial() {
-		return ErrPermission
-	}
-	n.FileMode = fileMode | (n.FileMode & ModeDir)
+func (n *node) chmod(fileMode os.FileMode) error {
+	n.FileMode = fileMode | (n.FileMode & os.ModeDir)
 	return nil
 }
 
@@ -64,7 +62,7 @@ func (n *node) move(name string, d *directory) error {
 	if n.parent == nil {
 		return ErrInvalid
 	}
-	if !n.parent.canWrite() || !d.canWrite() {
+	if !canRead(n.parent.FileMode) || !canWrite(d.FileMode) {
 		return ErrPermission
 	}
 	f, ok := n.parent.Contents[n.name]
@@ -79,7 +77,7 @@ func (n *node) move(name string, d *directory) error {
 
 type directory struct {
 	node
-	Contents map[string]FileInfo
+	Contents map[string]os.FileInfo
 }
 
 func namecheck(name string) error {
@@ -92,8 +90,8 @@ func namecheck(name string) error {
 	return nil
 }
 
-func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
-	if !d.canWrite() {
+func (d *directory) create(name string, perm os.FileMode) (os.FileInfo, error) {
+	if !canWrite(d.FileMode) {
 		return nil, ErrPermission
 	}
 	if f, ok := d.Contents[name]; ok {
@@ -104,7 +102,7 @@ func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
 	}
 	f := &file{
 		node{
-			perm &^ ModeDir,
+			perm &^ os.ModeDir,
 			time.Now(),
 			name,
 			d,
@@ -115,31 +113,31 @@ func (d *directory) create(name string, perm FileMode) (FileInfo, error) {
 	return f, nil
 }
 
-func (d *directory) mkdir(name string, fileMode FileMode) (*directory, error) {
-	if !d.canWrite() {
-		return nil, ErrExist
+func (d *directory) mkdir(name string, fileMode os.FileMode) (*directory, error) {
+	if !canWrite(d.FileMode) {
+		return nil, ErrPermission
 	}
 	if _, ok := d.Contents[name]; ok {
-		return nil, ErrPermission
+		return nil, ErrExist
 	}
 	if err := namecheck(name); err != nil {
 		return nil, err
 	}
 	e := &directory{
 		node{
-			fileMode | ModeDir,
+			fileMode | os.ModeDir,
 			time.Now(),
 			name,
 			d,
 		},
-		make(map[string]FileInfo),
+		make(map[string]os.FileInfo),
 	}
 	d.Contents[name] = e
 	return e, nil
 }
 
-func (d *directory) get(name string) (FileInfo, error) {
-	if !d.canExecute() {
+func (d *directory) get(name string) (os.FileInfo, error) {
+	if !canExecute(d.FileMode) {
 		return nil, ErrPermission
 	}
 	switch name {
@@ -156,7 +154,7 @@ func (d *directory) get(name string) (FileInfo, error) {
 }
 
 func (d *directory) remove(name string, all bool) error {
-	if !d.canWrite() {
+	if !canWrite(d.FileMode) {
 		return ErrPermission
 	}
 	fi, ok := d.Contents[name]
@@ -194,7 +192,7 @@ func (d *directory) getContents(flag int) (contents, error) {
 	if flag&O_WRONLY != 0 {
 		return nil, ErrIsDir
 	}
-	list := make([]FileInfo, 0, len(d.Contents))
+	list := make([]os.FileInfo, 0, len(d.Contents))
 	for _, fi := range d.Contents {
 		list = append(list, fi)
 	}

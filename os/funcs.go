@@ -1,6 +1,7 @@
 package os
 
 import (
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ func navigateTo(p string) (*directory, error) {
 		switch dir {
 		case "", ".":
 		case "..":
-			if !d.parent.canRead() {
+			if !canRead(d.parent.FileMode) {
 				return nil, ErrPermission
 			}
 			d = d.parent
@@ -37,7 +38,7 @@ func navigateTo(p string) (*directory, error) {
 	return d, nil
 }
 
-func getFile(p string) (FileInfo, error) {
+func getFile(p string) (os.FileInfo, error) {
 	dir, file := path.Split(path.Clean(p))
 	d, err := navigateTo(dir)
 	if err != nil {
@@ -61,11 +62,11 @@ func Chdir(p string) error {
 	return nil
 }
 
-func Chmod(p string, mode FileMode) error {
+func Chmod(p string, mode os.FileMode) error {
 	f, err := getFile(p)
 	if err == nil {
 		type i interface {
-			chmod(FileMode) error
+			chmod(os.FileMode) error
 		}
 		err = f.(i).chmod(mode)
 	}
@@ -202,7 +203,7 @@ func Link(oldname, newname string) error {
 	}
 }
 
-func Mkdir(p string, fileMode FileMode) error {
+func Mkdir(p string, fileMode os.FileMode) error {
 	dir, toMake := path.Split(path.Clean(p))
 	d, err := navigateTo(dir)
 	if err == nil {
@@ -218,7 +219,7 @@ func Mkdir(p string, fileMode FileMode) error {
 	return nil
 }
 
-func MkdirAll(p string, fileMode FileMode) error {
+func MkdirAll(p string, fileMode os.FileMode) error {
 	p = path.Clean(p)
 	d := cwd
 	if p[0] == '/' {
@@ -309,7 +310,7 @@ func Rename(oldpath, newpath string) error {
 	return nil
 }
 
-func SameFile(f, g FileInfo) bool {
+func SameFile(f, g os.FileInfo) bool {
 	return f == g
 }
 
@@ -334,7 +335,7 @@ func Truncate(name string, size int64) error {
 	f, err := getFile(name)
 	if err == nil {
 		if f, ok := f.(*file); ok {
-			if f.canWrite() {
+			if canWrite(f.Mode()) {
 				if size < int64(len(f.Contents)) {
 					f.Contents = f.Contents[:size]
 				} else {

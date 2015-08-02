@@ -2,6 +2,7 @@ package os
 
 import (
 	"io"
+	"os"
 	"path"
 	"unsafe"
 
@@ -29,7 +30,7 @@ type readWrite struct {
 	*memio.ReadWriteMem
 }
 
-func (readWrite) Readdir(_ int) ([]FileInfo, error) {
+func (readWrite) Readdir(_ int) ([]os.FileInfo, error) {
 	return nil, ErrInvalid
 }
 func (readWrite) Readdirnames(_ int) ([]string, error) {
@@ -61,7 +62,7 @@ func (noRead) ReadAt(_ []byte, _ int64) (int, error) {
 }
 
 type directoryC struct {
-	contents []FileInfo
+	contents []os.FileInfo
 }
 
 func (d directoryC) Len() int {
@@ -76,10 +77,10 @@ func (d directoryC) Swap(i, j int) {
 	d.contents[i], d.contents[j] = d.contents[j], d.contents[i]
 }
 
-func (d *directoryC) Readdir(n int) ([]FileInfo, error) {
+func (d *directoryC) Readdir(n int) ([]os.FileInfo, error) {
 	if len(d.contents) == 0 {
 		if n <= 0 {
-			return []FileInfo{}, nil
+			return []os.FileInfo{}, nil
 		}
 		return d.contents, io.EOF
 	}
@@ -128,7 +129,7 @@ func (directoryC) Seek(_ int64, _ int) (int64, error) {
 type contents interface {
 	Read([]byte) (int, error)
 	ReadAt([]byte, int64) (int, error)
-	Readdir(int) ([]FileInfo, error)
+	Readdir(int) ([]os.FileInfo, error)
 	Readdirnames(int) ([]string, error)
 	Seek(int64, int) (int64, error)
 	Write([]byte) (int, error)
@@ -136,7 +137,7 @@ type contents interface {
 }
 
 type File struct {
-	fi   FileInfo
+	fi   os.FileInfo
 	name string
 	contents
 }
@@ -156,7 +157,7 @@ func Open(name string) (*File, error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
 
-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 	if name == "" {
 		return nil, &PathError{
 			"open",
@@ -169,7 +170,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		file = "."
 	}
 	d, err := navigateTo(dir)
-	var f FileInfo
+	var f os.FileInfo
 	if err == nil {
 		f, err = d.get(file)
 		if flag&O_CREATE != 0 {
@@ -187,7 +188,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 			err,
 		}
 	}
-	if (!f.Mode().canWrite() && flag&(O_RDWR|O_APPEND|O_TRUNC|O_WRONLY) != 0) || (!f.Mode().canRead() && flag&(O_RDWR|O_RDWR) != 0) {
+	if (!canWrite(f.Mode()) && flag&(O_RDWR|O_APPEND|O_TRUNC|O_WRONLY) != 0) || (!canRead(f.Mode()) && flag&(O_RDWR|O_RDWR) != 0) {
 		return nil, &PathError{
 			"open",
 			name,
@@ -253,7 +254,7 @@ func (f *File) Chdir() error {
 	return nil
 }
 
-func (f *File) Chmod(mode FileMode) error {
+func (f *File) Chmod(mode os.FileMode) error {
 	if f == nil {
 		return ErrInvalid
 	}
@@ -265,7 +266,7 @@ func (f *File) Chmod(mode FileMode) error {
 		}
 	}
 	type i interface {
-		chmod(FileMode) error
+		chmod(os.FileMode) error
 	}
 	if err := f.fi.(i).chmod(mode); err != nil {
 		return &PathError{
@@ -324,9 +325,9 @@ func (f *File) ReadAt(b []byte, off int64) (int, error) {
 	return f.contents.ReadAt(b, off)
 }
 
-func (f *File) Readdir(n int) ([]FileInfo, error) {
+func (f *File) Readdir(n int) ([]os.FileInfo, error) {
 	if err := f.valid(); err != nil {
-		return []FileInfo{}, err
+		return []os.FileInfo{}, err
 	}
 	return f.contents.Readdir(n)
 }
@@ -345,7 +346,7 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
 	return f.contents.Seek(offset, whence)
 }
 
-func (f *File) Stat() (FileInfo, error) {
+func (f *File) Stat() (os.FileInfo, error) {
 	if err := f.validPath("stat"); err != nil {
 		return nil, err
 	}
