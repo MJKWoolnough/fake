@@ -175,7 +175,7 @@ func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 		f, err = d.get(file)
 		if flag&O_CREATE != 0 {
 			if IsNotExist(err) {
-				f, err = d.create(file, perm)
+				f, err = d.set(file, perm)
 			} else if flag&O_EXCL != 0 {
 				err = ErrExist
 			}

@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-func navigateTo(p string) (*directory, error) {
+func navigateTo(p string) (dir, error) {
 	if len(p) == 0 {
 		return cwd, nil
 	}
-	d := cwd
+	d := dir(cwd)
 	if p[0] == '/' {
 		d = root
 		p = p[1:]
@@ -23,7 +23,7 @@ func navigateTo(p string) (*directory, error) {
 			if !canRead(d.parent.FileMode) {
 				return nil, ErrPermission
 			}
-			d = d.parent
+			d = d.get("..")
 		default:
 			fi, err := d.get(dir)
 			if err != nil {
@@ -32,7 +32,7 @@ func navigateTo(p string) (*directory, error) {
 			if !fi.IsDir() {
 				return nil, ErrIsNotDir
 			}
-			d = fi.(*directory)
+			d = fi.(dir)
 		}
 	}
 	return d, nil
@@ -289,7 +289,7 @@ func Rename(oldpath, newpath string) error {
 	newdir, newfile := path.Split(path.Clean(newpath))
 	oldd, err := navigateTo(olddir)
 	if err == nil {
-		var newd *directory
+		var newd dir
 		newd, err = navigateTo(newdir)
 		f, err := oldd.get(oldfile)
 		if err == nil {

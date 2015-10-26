@@ -30,11 +30,21 @@ func init() {
 	Chdir("/tmp")
 }
 
+type dir interface {
+	file
+	get(string) (os.FileInfo, error)
+	set(string, os.FileInfo) error
+	removeFile(file)
+}
+
+type file interface {
+}
+
 type node struct {
 	os.FileMode
 	modTime time.Time
 	name    string
-	parent  *directory
+	parent  dir
 }
 
 func (n node) Name() string {
@@ -58,20 +68,24 @@ func (n *node) setModTime(m time.Time) {
 	n.modTime = m
 }
 
-func (n *node) move(name string, d *directory) error {
+func (n *node) move(name string, d dir) error {
 	if n.parent == nil {
 		return ErrInvalid
 	}
-	if !canRead(n.parent.FileMode) || !canWrite(d.FileMode) {
+	if !canRead(n.parent.FileMode) {
 		return ErrPermission
 	}
-	f, ok := n.parent.Contents[n.name]
-	if !ok {
-		return ErrInvalid
+	f, err := n.parent.get(name)
+	if err != nil {
+		return err
 	}
-	delete(n.parent.Contents, n.name)
+	if err := n.parent.removeFile(name); err != nil {
+		return err
+	}
+	if err := d.set(name, f); err != nil {
+		return err
+	}
 	n.parent = d
-	d.Contents[name] = f
 	return nil
 }
 
@@ -100,7 +114,7 @@ func (d *directory) create(name string, perm os.FileMode) (os.FileInfo, error) {
 	if err := namecheck(name); err != nil {
 		return nil, err
 	}
-	f := &file{
+	f := &bfile{
 		node{
 			perm &^ os.ModeDir,
 			time.Now(),
@@ -153,6 +167,10 @@ func (d *directory) get(name string) (os.FileInfo, error) {
 	return fi, nil
 }
 
+func (d *directory) set(name string, f os.FileInfo) error {
+
+}
+
 func (d *directory) remove(name string, all bool) error {
 	if !canWrite(d.FileMode) {
 		return ErrPermission
@@ -201,20 +219,20 @@ func (d *directory) getContents(flag int) (contents, error) {
 	return dir, nil
 }
 
-type file struct {
+type bfile struct {
 	node
 	Contents []byte
 }
 
-func (f *file) Size() int64 {
+func (f *bfile) Size() int64 {
 	return int64(len(f.Contents))
 }
 
-func (f *file) Sys() interface{} {
+func (f *bfile) Sys() interface{} {
 	return &f.Contents
 }
 
-func (f *file) getContents(flag int) (contents, error) {
+func (f *bfile) getContents(flag int) (contents, error) {
 	rw := readWrite{memio.OpenMem(&f.Contents)}
 	if flag&O_TRUNC != 0 {
 		f.Contents = f.Contents[:0]
