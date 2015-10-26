@@ -39,7 +39,11 @@ func IsExist(err error) bool {
 	switch e := err.(type) {
 	case *PathError:
 		err = e.Err
+	case *os.PathError:
+		err = e.Err
 	case *LinkError:
+		err = e.Err
+	case *os.LinkError:
 		err = e.Err
 	}
 	return err == ErrExist
@@ -49,7 +53,11 @@ func IsNotExist(err error) bool {
 	switch e := err.(type) {
 	case *PathError:
 		err = e.Err
+	case *os.PathError:
+		err = e.Err
 	case *LinkError:
+		err = e.Err
+	case *os.LinkError:
 		err = e.Err
 	}
 	return err == ErrNotExist
@@ -59,7 +67,11 @@ func IsPermission(err error) bool {
 	switch e := err.(type) {
 	case *PathError:
 		err = e.Err
+	case *os.PathError:
+		err = e.Err
 	case *LinkError:
+		err = e.Err
+	case *os.LinkError:
 		err = e.Err
 	}
 	return err == ErrPermission
