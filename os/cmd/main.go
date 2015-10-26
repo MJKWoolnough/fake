@@ -93,7 +93,7 @@ const (
 	test   = "````````"
 	tStart = `package %s
 
-import "github.com/MJKWoolnough/fake/io"
+import "github.com/MJKWoolnough/fake/os"
 
 func init() {
 	os.WriteString(%q, ` + "`"
