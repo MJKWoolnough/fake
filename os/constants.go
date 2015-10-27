@@ -25,3 +25,20 @@ const (
 )
 
 const DevNull = os.DevNull
+
+const (
+	ModeDir        = os.ModeDir
+	ModeAppend     = os.ModeAppend
+	ModeExclusive  = os.ModeExclusive
+	ModeTemporary  = os.ModeTemporary
+	ModeSymlink    = os.ModeSymlink
+	ModeDevice     = os.ModeDevice
+	ModeNamedPipe  = os.ModeNamedPipe
+	ModeSocket     = os.ModeSocket
+	ModeSetuid     = os.ModeSetuid
+	ModeSetgid     = os.ModeSetgid
+	ModeCharDevice = os.ModeCharDevice
+	ModeSticky     = os.ModeSticky
+	ModeType       = os.ModeType
+	ModePerm       = os.ModePerm
+)
