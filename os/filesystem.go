@@ -10,15 +10,35 @@ import (
 var fs = struct {
 	sync.Mutex
 	root directory
-	cwd  path
+	cwd  breadcrumbs
 }{
-	root: dir{},
-	cwd:  path{},
+	root: &dir{
+		modTime:  time.Now(),
+		contents: make([]FileInfo, 0),
+	},
+	cwd: breadcrumbs{
+		"",
+		0,
+		nil,
+		nil,
+	},
 }
+
+func init() {
+	fs.cwd.dir = fs.root
+	//Mkdir("/dev", 0755)
+	//Mkdir("/tmp", 0755)
+}
+
+/*type special struct {
+	fileMode FileMode
+	modtime time.Time
+	data data
+}*/
 
 type data interface {
 	Size() int64
-	Mode() os.FileMode
+	Mode() FileMode
 	ModTime() time.Time
 	Data()
 }
@@ -69,10 +89,11 @@ type link interface {
 	Follow() node
 }
 
-type path struct {
+type breadcrumbs struct {
 	name   string
 	deep   uint
-	parent *path
+	parent *breadcrumbs
+	dir    directory
 }
 
 type modeTime struct {
