@@ -21,34 +21,34 @@ func makeNull() nullDevice {
 	}
 }
 
-func (devNull) Read([]byte) (int, error) {
+func (nullDevice) Read([]byte) (int, error) {
 	return 0, io.EOF
 }
 
-func (devNull) Seek(int64, int) (int64, error) {
+func (nullDevice) Seek(int64, int) (int64, error) {
 	return 0, ErrInvalid
 }
 
-func (devNull) Close() error {
+func (nullDevice) Close() error {
 	return nil
 }
 
-func (devNull) ReaderAt([]byte, int64) (int, error) {
+func (nullDevice) ReaderAt([]byte, int64) (int, error) {
 	return 0, ErrInvalid
 }
 
-func (devNull) WriterAt([]byte, int64) (int, error) {
+func (nullDevice) WriterAt([]byte, int64) (int, error) {
 	return 0, ErrInvalid
 }
 
-func (devNull) WriteTo(w io.Writer) (int64, error) {
+func (nullDevice) WriteTo(w io.Writer) (int64, error) {
 	return 0, io.EOF
 }
 
-func (devNull) Sync() error {
+func (nullDevice) Sync() error {
 	return nil
 }
 
-func (devNull) Truncate(int64) error {
+func (nullDevice) Truncate(int64) error {
 	return ErrInvalid
 }
