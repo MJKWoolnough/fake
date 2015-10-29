@@ -94,6 +94,7 @@ func Chmod(p string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
+	n.SetMode(mode)
 	return nil
 }
 
@@ -106,6 +107,11 @@ func Chown(p string, _, _ int) error {
 }
 
 func Chtimes(p string, _, mtime time.Time) error {
+	n, err := fs.getNode(path.Clean(p))
+	if err != nil {
+		return err
+	}
+	n.SetModTime(mtime)
 	return nil
 }
 
@@ -194,6 +200,7 @@ func Lchown(p string, _, _ int) error {
 }
 
 func Link(oldname, newname string) error {
+	return nil
 }
 
 func Mkdir(p string, fileMode os.FileMode) error {
@@ -207,15 +214,38 @@ func NewSyscallError(_, string, _ error) error {
 }
 
 func Readlink(name string) (string, error) {
+	n, err := fs.getNode(path.Clean(p))
+	if err != nil {
+		return err
+	}
+	s, ok := n.(*symlink)
+	if !ok {
+		return "", &Path{
+			Op:   "readlink",
+			Path: name,
+			Err:  ErrInvalid,
+		}
+	}
+	if s.Mode&0444 == 0 {
+		return "", &Path{
+			Op:   "readlink",
+			Path: name,
+			Err:  ErrPermission,
+		}
+	}
+	return s.link, nil
 }
 
 func Remove(name string) error {
+	return nil
 }
 
 func RemoveAll(name string) error {
+	return nil
 }
 
 func Rename(oldpath, newpath string) error {
+	return nil
 }
 
 func SameFile(f, g os.FileInfo) bool {
@@ -227,6 +257,7 @@ func Setenv(key, value string) error {
 }
 
 func Symlink(oldname, newname string) error {
+	return nil
 }
 
 func TempDir() string {
@@ -234,6 +265,26 @@ func TempDir() string {
 }
 
 func Truncate(name string, size int64) error {
+	n, err := fs.getNode(path.Clean(p))
+	if err != nil {
+		return err
+	}
+	f, ok := n.Data().(file)
+	if !ok {
+		return &Path{
+			Op:   "truncate",
+			Path: name,
+			Err:  ErrInvalid,
+		}
+	}
+	if n.Mode()&0222 == 0 {
+		return &Path{
+			Op:   "truncate",
+			Path: name,
+			Err:  ErrPermission,
+		}
+	}
+	return f.Truncate(size)
 }
 
 func Unsetenv(_ string) error {
