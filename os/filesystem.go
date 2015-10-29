@@ -2,6 +2,7 @@ package os
 
 import (
 	"io"
+	"os"
 	"sync"
 	"time"
 )
@@ -37,8 +38,10 @@ func init() {
 
 type node interface {
 	Size() int64
-	Mode() FileMode
+	Mode() os.FileMode
+	SetMode(os.FileMode)
 	ModTime() time.Time
+	SetModTime(time.Time)
 	Data() interface{}
 }
 
@@ -64,11 +67,11 @@ type breadcrumbs struct {
 }
 
 type modeTime struct {
-	FileMode
+	os.FileMode
 	modTime time.Time
 }
 
-func (m modeTime) Mode() FileMode {
+func (m modeTime) Mode() os.FileMode {
 	return m.FileMode
 }
 
@@ -78,14 +81,44 @@ func (m modeTime) ModTime() time.Time {
 
 type directory struct {
 	modeTime
+	sync.RWMutex
 	contents map[string]node
 }
 
 func (d *directory) get(name string) (node, error) {
+	if d.FileMode&0111 == 0 {
+		return nil, ErrPermission
+	}
+	d.RLock()
+	defer d.RUnlock()
 	if f, ok := d.contents[name]; ok {
 		return f, nil
 	}
 	return nil, ErrNotExist
+}
+
+func (d *directory) set(name string, n node) error {
+	if d.FileMode&0333 == 0 {
+		return nil, ErrPermission
+	}
+	d.Lock()
+	defer d.Unlock()
+	if _, ok := d.contents[name]; ok {
+		return nil, ErrExist
+	}
+	d.contents[name] = n
+	return nil
+}
+
+func (d *directory) remove(name string) error {
+	if d.FileMode&0333 == 0 {
+		return nil, ErrPermission
+	}
+	if _, ok := d.contents[name]; !ok {
+		return nil, ErrNotExist
+	}
+	delete(d.contents, name)
+	return nil
 }
 
 type symlink struct {
