@@ -19,7 +19,6 @@ var fs = filesystem{
 			contents: make(map[string]data),
 		},
 	},
-	cwdPath: "/",
 }
 
 func init() {

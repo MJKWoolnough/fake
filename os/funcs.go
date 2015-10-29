@@ -166,7 +166,15 @@ func Getuid() int {
 }
 
 func Getwd() (string, error) {
-	return fs.cwdPath, nil
+	fs.RLock()
+	cwd := fs.cwd
+	fs.RUnlock()
+	parts := make([]string, cwd.depth)
+	for i := cwd.depth - 1; i >= 0; i-- {
+		parts[i] = cwd.name
+		cwd = cwd.previous
+	}
+	return path.Join("/", parts...)
 }
 
 func Hostname() (string, error) {
