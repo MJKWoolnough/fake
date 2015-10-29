@@ -64,13 +64,28 @@ func (fs *filesystem) getDirectoryWithCwd(p string, d *breadcrumbs) (*breadcrumb
 	return d, nil
 }
 
-func (fs *filesystem) getNode(p string) (node, error) {
+func (fs *filesystem) getNode(p string, followSymLinks bool) (node, error) {
+	fs.RLock()
+	d := fs.cwd
+	fs.RUnlock()
+	return fs.getNodeWithCwd(p, followSymLinks, d)
+}
+
+func (fs *filesystem) getNodeWithCwd(p string, followSymLinks bool, cwd *breadcrumbs) (node, error) {
 	dir, file := path.Split(p)
-	d, err := fs.getDirectory(dir)
+	d, err := fs.getDirectoryWithCwd(dir, cwd)
 	if err != nil {
 		return nil, err
 	}
-	return d.get(file)
+	f, err := d.get(file)
+	if err != nil {
+		return nil, err
+	}
+	s, ok := f.(*symlink)
+	if ok && followSymLinks {
+		return fs.getNodeWithCwd(s.link, true, d)
+	}
+	return f, nil
 }
 
 func Chdir(p string) error {
@@ -90,7 +105,7 @@ func Chdir(p string) error {
 }
 
 func Chmod(p string, mode os.FileMode) error {
-	n, err := fs.getNode(path.Clean(p))
+	n, err := fs.getNode(path.Clean(p), true)
 	if err != nil {
 		return err
 	}
@@ -107,7 +122,7 @@ func Chown(p string, _, _ int) error {
 }
 
 func Chtimes(p string, _, mtime time.Time) error {
-	n, err := fs.getNode(path.Clean(p))
+	n, err := fs.getNode(path.Clean(p), true)
 	if err != nil {
 		return err
 	}
@@ -214,7 +229,7 @@ func NewSyscallError(_, string, _ error) error {
 }
 
 func Readlink(name string) (string, error) {
-	n, err := fs.getNode(path.Clean(p))
+	n, err := fs.getNode(path.Clean(p), false)
 	if err != nil {
 		return err
 	}
@@ -257,6 +272,28 @@ func Setenv(key, value string) error {
 }
 
 func Symlink(oldname, newname string) error {
+	dir, file := path.Split(newname)
+	d, err := fs.getDirectory(dir)
+	if err != nil {
+		return &LinkError{
+			Op:  "symlink",
+			Old: oldname,
+			New: newname,
+			Err: err,
+		}
+	}
+	err = d.set(file, &symlink{
+		modeTime: modeTime{},
+		link:     oldname,
+	})
+	if err != nil {
+		return &LinkError{
+			Op:  "symlink",
+			Old: oldname,
+			New: newname,
+			Err: err,
+		}
+	}
 	return nil
 }
 
@@ -265,7 +302,7 @@ func TempDir() string {
 }
 
 func Truncate(name string, size int64) error {
-	n, err := fs.getNode(path.Clean(p))
+	n, err := fs.getNode(path.Clean(p), true)
 	if err != nil {
 		return err
 	}
