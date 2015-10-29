@@ -17,19 +17,13 @@ var (
 	ErrIsNotDir    = errors.New("is not directory")
 )
 
-type PathError struct {
-	Op, Path string
-	Err      error
-}
+type PathError os.PathError
 
 func (p *PathError) Error() string {
 	return p.Op + " " + p.Path + ": " + p.Err.Error()
 }
 
-type LinkError struct {
-	Op, Old, New string
-	Err          error
-}
+type LinkError os.LinkError
 
 func (l *LinkError) Error() string {
 	return l.Op + " " + l.Old + " " + l.New + ": " + l.Err.Error()
