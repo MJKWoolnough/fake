@@ -2,30 +2,30 @@ package os
 
 import (
 	"io"
-	"os"
 	"sync"
 	"time"
 )
 
-var fs = struct {
-	sync.Mutex
-	root directory
-	cwd  breadcrumbs
-}{
-	root: &dir{
-		modTime:  time.Now(),
-		contents: make([]FileInfo, 0),
+type filesystem struct {
+	sync.RWMutex
+	root, cwd *breadcrumbs
+	cwdPath   string
+}
+
+var fs = filesystem{
+	root: &breadcrumbs{
+		directory: &directory{
+			modTime:  time.Now(),
+			contents: make(map[string]data),
+		},
 	},
-	cwd: breadcrumbs{
-		"",
-		0,
-		nil,
-		nil,
-	},
+	cwdPath: "/",
 }
 
 func init() {
-	fs.cwd.dir = fs.root
+	fs.root.parent = fs.root
+	fs.root.previous = fs.root
+	fs.cwd = fs.root
 	//Mkdir("/dev", 0755)
 	//Mkdir("/tmp", 0755)
 }
@@ -36,32 +36,11 @@ func init() {
 	data data
 }*/
 
-type data interface {
+type node interface {
 	Size() int64
 	Mode() FileMode
 	ModTime() time.Time
-	Data()
-}
-
-type node struct {
-	name string
-	data
-}
-
-func (n *node) Name() string {
-	return n.name
-}
-
-func (n *node) IsDir() bool {
-	return n.Mode().IsDir()
-}
-
-func (n *node) IsSymlink() bool {
-	return n.Mode()&ModeSymlink > 0
-}
-
-func (n *node) Sys() interface{} {
-	return n.data
+	Data() interface{}
 }
 
 type file interface {
@@ -78,22 +57,11 @@ type file interface {
 	WriteString(string) (int, error)
 }
 
-type directory interface {
-	io.Seeker
-	io.Closer
-	Readdir(int) ([]FileInfo, error)
-	Readdirnames(int) ([]string, error)
-}
-
-type link interface {
-	Follow() node
-}
-
 type breadcrumbs struct {
-	name   string
-	deep   uint
-	parent *breadcrumbs
-	dir    directory
+	name             string
+	depth            uint
+	previous, parent *breadcrumbs
+	*directory
 }
 
 type modeTime struct {
@@ -101,7 +69,7 @@ type modeTime struct {
 	modTime time.Time
 }
 
-func (m modeTime) Mode() os.FileMode {
+func (m modeTime) Mode() FileMode {
 	return m.FileMode
 }
 
@@ -109,9 +77,21 @@ func (m modeTime) ModTime() time.Time {
 	return m.modTime
 }
 
-type dir struct {
+type directory struct {
 	modeTime
-	contents []FileInfo
+	contents map[string]node
+}
+
+func (d *directory) get(name string) (node, error) {
+	if f, ok := d.contents[name]; ok {
+		return f, nil
+	}
+	return nil, ErrNotExist
+}
+
+type symlink struct {
+	modeTime
+	link string
 }
 
 type fileBytes struct {
