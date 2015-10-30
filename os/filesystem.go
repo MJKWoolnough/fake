@@ -131,12 +131,30 @@ func (d *directory) set(name string, n node) error {
 	return nil
 }
 
-func (d *directory) remove(name string) error {
+func (d *directory) remove(name string, all bool) error {
 	if d.FileMode&0333 == 0 {
 		return ErrPermission
 	}
-	if _, ok := d.contents[name]; !ok {
+	d.Lock()
+	defer d.Unlock()
+	n, ok := d.contents[name]
+	if !ok {
 		return ErrNotExist
+	}
+	switch d := n.(type) {
+	case *directory:
+		if len(d.contents) > 0 {
+			if all {
+				for c := range d.contents {
+					err := d.remove(c, true)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				return ErrNotEmpty
+			}
+		}
 	}
 	delete(d.contents, name)
 	return nil

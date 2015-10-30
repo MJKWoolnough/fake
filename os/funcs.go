@@ -315,11 +315,36 @@ func Readlink(name string) (string, error) {
 }
 
 func Remove(name string) error {
+	err := remove(name, false)
+	if err != nil {
+		return &PathError{
+			Op:   "remove",
+			Path: name,
+			Err:  err,
+		}
+	}
 	return nil
 }
 
 func RemoveAll(name string) error {
+	err := remove(name, true)
+	if err != nil {
+		return &PathError{
+			Op:   "remove",
+			Path: name,
+			Err:  err,
+		}
+	}
 	return nil
+}
+
+func remove(name string, all bool) error {
+	d, n := path.Split(name)
+	dir, err := fs.getDirectory(d)
+	if err != nil {
+		return err
+	}
+	return dir.remove(n, all)
 }
 
 func Rename(oldpath, newpath string) error {
