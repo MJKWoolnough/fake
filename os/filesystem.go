@@ -2,7 +2,6 @@ package os
 
 import (
 	"io"
-	"os"
 	"sync"
 	"time"
 )
@@ -16,8 +15,11 @@ type filesystem struct {
 var fs = filesystem{
 	root: &breadcrumbs{
 		directory: &directory{
-			modTime:  time.Now(),
-			contents: make(map[string]data),
+			modeTime: modeTime{
+				FileMode: FileMode(ModeDir) | 0755,
+				modTime:  time.Now(),
+			},
+			contents: make(map[string]node),
 		},
 	},
 }
@@ -38,8 +40,8 @@ func init() {
 
 type node interface {
 	Size() int64
-	Mode() os.FileMode
-	SetMode(os.FileMode)
+	Mode() FileMode
+	SetMode(FileMode)
 	ModTime() time.Time
 	SetModTime(time.Time)
 	Data() interface{}
@@ -67,11 +69,11 @@ type breadcrumbs struct {
 }
 
 type modeTime struct {
-	os.FileMode
+	FileMode
 	modTime time.Time
 }
 
-func (m modeTime) Mode() os.FileMode {
+func (m modeTime) Mode() FileMode {
 	return m.FileMode
 }
 
@@ -99,12 +101,12 @@ func (d *directory) get(name string) (node, error) {
 
 func (d *directory) set(name string, n node) error {
 	if d.FileMode&0333 == 0 {
-		return nil, ErrPermission
+		return ErrPermission
 	}
 	d.Lock()
 	defer d.Unlock()
 	if _, ok := d.contents[name]; ok {
-		return nil, ErrExist
+		return ErrExist
 	}
 	d.contents[name] = n
 	return nil
@@ -112,10 +114,10 @@ func (d *directory) set(name string, n node) error {
 
 func (d *directory) remove(name string) error {
 	if d.FileMode&0333 == 0 {
-		return nil, ErrPermission
+		return ErrPermission
 	}
 	if _, ok := d.contents[name]; !ok {
-		return nil, ErrNotExist
+		return ErrNotExist
 	}
 	delete(d.contents, name)
 	return nil
