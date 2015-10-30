@@ -14,6 +14,8 @@ type filesystem struct {
 
 var fs = filesystem{
 	root: &breadcrumbs{
+		name:  "/",
+		depth: 1,
 		directory: &directory{
 			modeTime: modeTime{
 				FileMode: FileMode(ModeDir) | 0755,

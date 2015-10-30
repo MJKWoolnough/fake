@@ -109,7 +109,7 @@ func Chmod(p string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	n.SetMode(mode)
+	n.SetMode(FileMode(mode))
 	return nil
 }
 
@@ -195,7 +195,7 @@ func Getwd() (string, error) {
 		parts[i] = cwd.name
 		cwd = cwd.previous
 	}
-	return path.Join("/", parts...)
+	return path.Join(parts...), nil
 }
 
 func Hostname() (string, error) {
@@ -219,9 +219,11 @@ func Link(oldname, newname string) error {
 }
 
 func Mkdir(p string, fileMode os.FileMode) error {
+	return nil
 }
 
 func MkdirAll(p string, fileMode os.FileMode) error {
+	return nil
 }
 
 func NewSyscallError(_, string, _ error) error {
@@ -229,20 +231,20 @@ func NewSyscallError(_, string, _ error) error {
 }
 
 func Readlink(name string) (string, error) {
-	n, err := fs.getNode(path.Clean(p), false)
+	n, err := fs.getNode(path.Clean(name), false)
 	if err != nil {
-		return err
+		return "", err
 	}
 	s, ok := n.(*symlink)
 	if !ok {
-		return "", &Path{
+		return "", &PathError{
 			Op:   "readlink",
 			Path: name,
 			Err:  ErrInvalid,
 		}
 	}
-	if s.Mode&0444 == 0 {
-		return "", &Path{
+	if s.Mode()&0444 == 0 {
+		return "", &PathError{
 			Op:   "readlink",
 			Path: name,
 			Err:  ErrPermission,
@@ -302,26 +304,28 @@ func TempDir() string {
 }
 
 func Truncate(name string, size int64) error {
-	n, err := fs.getNode(path.Clean(p), true)
+	n, err := fs.getNode(path.Clean(name), true)
 	if err != nil {
 		return err
 	}
-	f, ok := n.Data().(file)
+	f, ok := n.(interface {
+		Data() file
+	})
 	if !ok {
-		return &Path{
+		return &PathError{
 			Op:   "truncate",
 			Path: name,
 			Err:  ErrInvalid,
 		}
 	}
 	if n.Mode()&0222 == 0 {
-		return &Path{
+		return &PathError{
 			Op:   "truncate",
 			Path: name,
 			Err:  ErrPermission,
 		}
 	}
-	return f.Truncate(size)
+	return f.Data().Truncate(size)
 }
 
 func Unsetenv(_ string) error {
