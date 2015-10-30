@@ -17,7 +17,7 @@ func (f FileMode) IsRegular() bool {
 }
 
 func (f FileMode) Perm() FileMode {
-	return os.FileMode(f).Perm()
+	return FileMode(os.FileMode(f).Perm())
 }
 
 func (f FileMode) String() string {
