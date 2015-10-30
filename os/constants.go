@@ -16,7 +16,7 @@ const (
 	SEEK_CUR = os.SEEK_CUR
 	SEEK_END = os.SEEK_END
 
-	PathSeparator     = os.PathSeparator
+	PathSeparator     = '/'
 	PathListSeparator = os.PathListSeparator
 
 	DevNull = os.DevNull
@@ -35,4 +35,6 @@ const (
 	ModeSticky     = os.ModeSticky
 	ModeType       = os.ModeType
 	ModePerm       = os.ModePerm
+
+	strPathSeparator = "/"
 )

@@ -96,6 +96,16 @@ type directory struct {
 	contents map[string]node
 }
 
+func newDirectory(fm FileMode) *directory {
+	return &directory{
+		modeTime: modeTime{
+			FileMode: fm,
+			modTime:  time.Now(),
+		},
+		contents: make(map[string]node),
+	}
+}
+
 func (d *directory) get(name string) (node, error) {
 	if d.FileMode&0111 == 0 {
 		return nil, ErrPermission

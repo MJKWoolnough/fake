@@ -18,11 +18,11 @@ func (fs *filesystem) getDirectoryWithCwd(p string, d *breadcrumbs) (*breadcrumb
 	if len(p) == 0 {
 		return d, nil
 	}
-	if p[0] == '/' {
+	if p[0] == PathSeparator {
 		d = fs.root
 		p = p[1:]
 	}
-	parts := strings.Split(p, "/")
+	parts := strings.Split(p, strPathSeparator)
 	for len(parts) > 0 && parts[0] == ".." {
 		d = d.previous
 	}
@@ -203,7 +203,7 @@ func Hostname() (string, error) {
 }
 
 func IsPathSeparator(c uint8) bool {
-	return c == '/'
+	return c == PathSeparator
 }
 
 func Lchown(p string, _, _ int) error {
@@ -215,14 +215,80 @@ func Lchown(p string, _, _ int) error {
 }
 
 func Link(oldname, newname string) error {
+	n, err := fs.getNode(oldname, true)
+	if err == nil {
+		dir, name := path.Split(newname)
+		d, err := fs.getDirectory(dir)
+		if err == nil {
+			err = d.set(name, n)
+		}
+	}
+	if err != nil {
+		return &LinkError{
+			"link",
+			oldname,
+			newname,
+			err,
+		}
+	}
 	return nil
 }
 
 func Mkdir(p string, fileMode os.FileMode) error {
+	p = path.Clean(p)
+	wd, nd := path.Split(p)
+	d, err := fs.getDirectory(wd)
+	if err == nil {
+		err = d.set(nd, newDirectory(FileMode(fileMode)))
+	}
+	if err != nil {
+		return &PathError{
+			"mkdir",
+			p,
+			err,
+		}
+	}
 	return nil
 }
 
 func MkdirAll(p string, fileMode os.FileMode) error {
+	q := path.Clean(p)
+	var d *breadcrumbs
+	if len(q) > 0 && q[0] == PathSeparator {
+		d = fs.root
+		q = q[1:]
+	} else {
+		fs.RLock()
+		d = fs.cwd
+		fs.RUnlock()
+	}
+	var err error
+	for _, part := range strings.Split(q, strPathSeparator) {
+		e := d
+		d, err = fs.getDirectoryWithCwd(part, d)
+		if IsNotExist(err) {
+			nd := newDirectory(FileMode(fileMode))
+			err = d.set(part, nd)
+			d = &breadcrumbs{
+				name:      part,
+				depth:     e.depth + 1,
+				previous:  e,
+				parent:    e,
+				directory: nd,
+			}
+		}
+		if err != nil {
+			break
+		}
+
+	}
+	if err != nil {
+		return &PathError{
+			"mkdirall",
+			p,
+			err,
+		}
+	}
 	return nil
 }
 
@@ -285,8 +351,11 @@ func Symlink(oldname, newname string) error {
 		}
 	}
 	err = d.set(file, &symlink{
-		modeTime: modeTime{},
-		link:     oldname,
+		modeTime: modeTime{
+			FileMode: 0777,
+			modTime:  time.Now(),
+		},
+		link: oldname,
 	})
 	if err != nil {
 		return &LinkError{
