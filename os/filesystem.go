@@ -44,7 +44,6 @@ type node interface {
 	SetMode(FileMode)
 	ModTime() time.Time
 	SetModTime(time.Time)
-	Data() interface{}
 }
 
 type file interface {
@@ -79,6 +78,14 @@ func (m modeTime) Mode() FileMode {
 
 func (m modeTime) ModTime() time.Time {
 	return m.modTime
+}
+
+func (m *modeTime) SetMode(fm FileMode) {
+	m.FileMode = fm
+}
+
+func (m *modeTime) SetModTime(t time.Time) {
+	m.modTime = t
 }
 
 type directory struct {
@@ -123,9 +130,17 @@ func (d *directory) remove(name string) error {
 	return nil
 }
 
+func (directory) Size() int64 {
+	return 0
+}
+
 type symlink struct {
 	modeTime
 	link string
+}
+
+func (symlink) Size() int64 {
+	return 0
 }
 
 type fileBytes struct {
