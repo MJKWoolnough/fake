@@ -15,10 +15,7 @@ func (fs *filesystem) getDirectory(p string) (*breadcrumbs, error) {
 }
 
 func (fs *filesystem) getDirectoryWithCwd(p string, d *breadcrumbs) (*breadcrumbs, error) {
-	if len(p) == 0 {
-		return d, nil
-	}
-	if p[0] == PathSeparator {
+	if len(p) > 0 && p[0] == PathSeparator {
 		d = fs.root
 		p = p[1:]
 	}
@@ -26,9 +23,12 @@ func (fs *filesystem) getDirectoryWithCwd(p string, d *breadcrumbs) (*breadcrumb
 	for len(parts) > 0 && parts[0] == ".." {
 		d = d.previous
 	}
+	if len(p) == 0 {
+		return d, nil
+	}
 	for len(parts) > 0 {
 		dir := parts[0]
-		dir = dir[1:]
+		parts = parts[1:]
 		fi, err := d.get(dir)
 		if err != nil {
 			return nil, err
@@ -57,7 +57,7 @@ func (fs *filesystem) getDirectoryWithCwd(p string, d *breadcrumbs) (*breadcrumb
 		default:
 			return nil, ErrIsNotDir
 		}
-		if d.FileMode&0111 > 0 {
+		if d.FileMode&0111 == 0 {
 			return nil, ErrPermission
 		}
 	}
@@ -95,11 +95,6 @@ func Chdir(p string) error {
 	}
 	fs.Lock()
 	fs.cwd = d
-	if p[0] == '/' {
-		fs.cwdPath = p
-	} else {
-		fs.cwdPath = path.Join(fs.cwdPath, p)
-	}
 	fs.Unlock()
 	return nil
 }
@@ -191,8 +186,8 @@ func Getwd() (string, error) {
 	cwd := fs.cwd
 	fs.RUnlock()
 	parts := make([]string, cwd.depth)
-	for i := cwd.depth - 1; i >= 0; i-- {
-		parts[i] = cwd.name
+	for i := cwd.depth; i > 0; i-- {
+		parts[i-1] = cwd.name
 		cwd = cwd.previous
 	}
 	return path.Join(parts...), nil
@@ -350,13 +345,7 @@ func Symlink(oldname, newname string) error {
 			Err: err,
 		}
 	}
-	err = d.set(file, &symlink{
-		modeTime: modeTime{
-			FileMode: 0777,
-			modTime:  time.Now(),
-		},
-		link: oldname,
-	})
+	err = d.set(file, newSymlink(oldname))
 	if err != nil {
 		return &LinkError{
 			Op:  "symlink",

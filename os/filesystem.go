@@ -9,7 +9,6 @@ import (
 type filesystem struct {
 	sync.RWMutex
 	root, cwd *breadcrumbs
-	cwdPath   string
 }
 
 var fs = filesystem{
@@ -30,8 +29,9 @@ func init() {
 	fs.root.parent = fs.root
 	fs.root.previous = fs.root
 	fs.cwd = fs.root
-	//Mkdir("/dev", 0755)
-	//Mkdir("/tmp", 0755)
+	Mkdir("/dev", 0755)
+	Mkdir("/tmp", 0755)
+	Chdir("/tmp")
 }
 
 /*type special struct {
@@ -99,7 +99,7 @@ type directory struct {
 func newDirectory(fm FileMode) *directory {
 	return &directory{
 		modeTime: modeTime{
-			FileMode: fm,
+			FileMode: FileMode(ModeDir) | fm,
 			modTime:  time.Now(),
 		},
 		contents: make(map[string]node),
@@ -149,6 +149,16 @@ func (directory) Size() int64 {
 type symlink struct {
 	modeTime
 	link string
+}
+
+func newSymlink(link string) *symlink {
+	return &symlink{
+		modeTime: modeTime{
+			FileMode: FileMode(ModeSymlink) | 077,
+			modTime:  time.Now(),
+		},
+		link: link,
+	}
 }
 
 func (symlink) Size() int64 {
