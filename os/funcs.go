@@ -104,7 +104,14 @@ func Chmod(p string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
-	n.SetMode(FileMode(mode))
+	err = n.SetMode(FileMode(mode))
+	if err != nil {
+		return &PathError{
+			Op:   "chmod",
+			Path: p,
+			Err:  err,
+		}
+	}
 	return nil
 }
 
@@ -121,7 +128,14 @@ func Chtimes(p string, _, mtime time.Time) error {
 	if err != nil {
 		return err
 	}
-	n.SetModTime(mtime)
+	err = n.SetModTime(mtime)
+	if err != nil {
+		return &PathError{
+			Op:   "chtimes",
+			Path: p,
+			Err:  err,
+		}
+	}
 	return nil
 }
 
