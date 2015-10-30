@@ -211,6 +211,9 @@ func Lchown(p string, _, _ int) error {
 
 func Link(oldname, newname string) error {
 	n, err := fs.getNode(oldname, true)
+	if _, ok := n.(*directory); ok {
+		err = ErrIsDir
+	}
 	if err == nil {
 		dir, name := path.Split(newname)
 		d, err := fs.getDirectory(dir)
@@ -362,15 +365,9 @@ func Setenv(key, value string) error {
 func Symlink(oldname, newname string) error {
 	dir, file := path.Split(newname)
 	d, err := fs.getDirectory(dir)
-	if err != nil {
-		return &LinkError{
-			Op:  "symlink",
-			Old: oldname,
-			New: newname,
-			Err: err,
-		}
+	if err == nil {
+		err = d.set(file, newSymlink(oldname))
 	}
-	err = d.set(file, newSymlink(oldname))
 	if err != nil {
 		return &LinkError{
 			Op:  "symlink",
