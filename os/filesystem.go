@@ -2,8 +2,11 @@ package os
 
 import (
 	"io"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/MJKWoolnough/memio"
 )
 
 type filesystem struct {
@@ -43,9 +46,9 @@ func init() {
 type node interface {
 	Size() int64
 	Mode() FileMode
-	SetMode(FileMode)
+	SetMode(FileMode) error
 	ModTime() time.Time
-	SetModTime(time.Time)
+	SetModTime(time.Time) error
 }
 
 type file interface {
@@ -82,12 +85,14 @@ func (m modeTime) ModTime() time.Time {
 	return m.modTime
 }
 
-func (m *modeTime) SetMode(fm FileMode) {
+func (m *modeTime) SetMode(fm FileMode) error {
 	m.FileMode = fm
+	return nil
 }
 
-func (m *modeTime) SetModTime(t time.Time) {
+func (m *modeTime) SetModTime(t time.Time) error {
 	m.modTime = t
+	return nil
 }
 
 type directory struct {
@@ -179,6 +184,10 @@ func newSymlink(link string) *symlink {
 	}
 }
 
+func (symlink) SetMode(FileMode) error {
+	return ErrInvalid
+}
+
 func (symlink) Size() int64 {
 	return 0
 }
@@ -188,7 +197,71 @@ type fileBytes struct {
 	data []byte
 }
 
+func (f *fileBytes) Size() int64 {
+	return int64(len(f.data))
+}
+
+func (f *fileBytes) Data() file {
+	return fileBytesData{memio.OpenMem(&f.data)}
+}
+
+type fileBytesData struct {
+	*memio.ReadWriteMem
+}
+
+func (fileBytesData) Sync() error {
+	return nil
+}
+
 type fileString struct {
 	modeTime
 	data string
+}
+
+func (f *fileString) SetMode(fm FileMode) error {
+	if fm&0222 > 0 {
+		return ErrInvalid
+	}
+	return f.modeTime.SetMode(fm)
+}
+
+func (f *fileString) Size() int64 {
+	return int64(len(f.data))
+}
+
+func (f *fileString) Data() file {
+	return fileStringData{strings.NewReader(f.data)}
+}
+
+type fileStringData struct {
+	*strings.Reader
+}
+
+func (f fileStringData) Close() error {
+	f.Reader = nil
+	return nil
+}
+
+func (fileStringData) ReadFrom(io.Reader) (int64, error) {
+	return 0, ErrPermission
+}
+
+func (fileStringData) Sync() error {
+	return nil
+}
+
+func (fileStringData) Truncate(int64) error {
+	return nil
+}
+
+func (fileStringData) Write([]byte) (int, error) {
+	return 0, ErrPermission
+}
+
+func (fileStringData) WriteAt([]byte, int64) (int, error) {
+	return 0, ErrPermission
+}
+
+func (fileStringData) WriteString(string) (int, error) {
+	return 0, ErrPermission
 }
