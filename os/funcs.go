@@ -64,14 +64,19 @@ func (fs *filesystem) getDirectoryWithCwd(p string, d *breadcrumbs) (*breadcrumb
 	return d, nil
 }
 
-func (fs *filesystem) getNode(p string, followSymLinks bool) (node, error) {
+type bNode struct {
+	node
+	parent *breadcrumbs
+}
+
+func (fs *filesystem) getNode(p string, followSymLinks bool) (bNode, error) {
 	fs.RLock()
 	d := fs.cwd
 	fs.RUnlock()
 	return fs.getNodeWithCwd(p, followSymLinks, d)
 }
 
-func (fs *filesystem) getNodeWithCwd(p string, followSymLinks bool, cwd *breadcrumbs) (node, error) {
+func (fs *filesystem) getNodeWithCwd(p string, followSymLinks bool, cwd *breadcrumbs) (bNode, error) {
 	dir, file := path.Split(p)
 	d, err := fs.getDirectoryWithCwd(dir, cwd)
 	if err != nil {
@@ -81,11 +86,13 @@ func (fs *filesystem) getNodeWithCwd(p string, followSymLinks bool, cwd *breadcr
 	if err != nil {
 		return nil, err
 	}
-	s, ok := f.(*symlink)
-	if ok && followSymLinks {
+	if s, ok := f.(*symlink); ok && followSymLinks {
 		return fs.getNodeWithCwd(s.link, true, d)
 	}
-	return f, nil
+	return bNode{
+		f,
+		d,
+	}, nil
 }
 
 func Chdir(p string) error {
@@ -225,14 +232,14 @@ func Lchown(p string, _, _ int) error {
 
 func Link(oldname, newname string) error {
 	n, err := fs.getNode(oldname, true)
-	if _, ok := n.(*directory); ok {
+	if _, ok := n.node.(*directory); ok {
 		err = ErrIsDir
 	}
 	if err == nil {
 		dir, name := path.Split(newname)
 		d, err := fs.getDirectory(dir)
 		if err == nil {
-			err = d.set(name, n)
+			err = d.set(name, n.node)
 		}
 	}
 	if err != nil {
@@ -313,7 +320,7 @@ func Readlink(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s, ok := n.(*symlink)
+	s, ok := n.node.(*symlink)
 	if !ok {
 		return "", &PathError{
 			Op:   "readlink",
@@ -402,7 +409,7 @@ func Truncate(name string, size int64) error {
 	if err != nil {
 		return err
 	}
-	f, ok := n.(interface {
+	f, ok := n.node.(interface {
 		Data() file
 	})
 	if !ok {
