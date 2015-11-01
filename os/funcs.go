@@ -80,11 +80,11 @@ func (fs *filesystem) getNodeWithCwd(p string, followSymLinks bool, cwd *breadcr
 	dir, file := path.Split(p)
 	d, err := fs.getDirectoryWithCwd(dir, cwd)
 	if err != nil {
-		return nil, err
+		return bNode{}, err
 	}
 	f, err := d.get(file)
 	if err != nil {
-		return nil, err
+		return bNode{}, err
 	}
 	if s, ok := f.(*symlink); ok && followSymLinks {
 		return fs.getNodeWithCwd(s.link, true, d)
