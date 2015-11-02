@@ -13,11 +13,18 @@ func Create(name string) (*File, error) {
 }
 
 func NewFile(fd uintptr, name string) *File {
-	return nil
+	return &File{
+		fNode: (*fNode)(unsafe.Pointer(fd)),
+		name:  name,
+	}
 }
 
 func Open(name string) (*File, error) {
 	return OpenFile(name, O_RDONLY, 0)
+}
+
+type data interface {
+	Data() file
 }
 
 func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
@@ -64,8 +71,67 @@ func OpenFile(name string, flag int, perm os.FileMode) (*File, error) {
 			ErrExist,
 		}
 	}
-
-	return nil, nil
+	fm := n.Mode()
+	switch d := n.node.(type) {
+	case *directory:
+		if flag != O_RDONLY {
+			return nil, &PathError{
+				"open",
+				name,
+				ErrIsDir,
+			}
+		}
+		if fm&0555 == 0 {
+			return nil, &PathError{
+				"open",
+				name,
+				ErrPermission,
+			}
+		}
+		contents := make([]dNode, 0, len(d.contents))
+		for dname, dnode := range d.contents {
+			contents = append(contents, dNode{
+				name: dname,
+				node: dnode,
+			})
+		}
+		return &File{
+			&fNode{
+				&dirWrapper{contents: contents},
+				n,
+			},
+			name,
+		}, nil
+	default:
+		var df dfile
+		if flag&O_WRONLY != 0 {
+			if fm&0222 != 0 {
+				df = fileWrapper{writeOnly{n.node.(data).Data()}}
+			}
+		} else if flag&O_RDWR != 0 {
+			if fm&0222 != 0 && fm&0444 != 0 {
+				df = fileWrapper{n.node.(data).Data()}
+			}
+		} else {
+			if fm&0444 != 0 {
+				df = fileWrapper{readOnly{n.node.(data).Data()}}
+			}
+		}
+		if df == nil {
+			return nil, &PathError{
+				"open",
+				name,
+				ErrPermission,
+			}
+		}
+		return &File{
+			&fNode{
+				df,
+				n,
+			},
+			name,
+		}, nil
+	}
 }
 
 type dfile interface {
@@ -403,6 +469,6 @@ func (writeOnly) ReadAt([]byte, int64) (int, error) {
 	return 0, ErrPermission
 }
 
-func (writeOnly) WriteTo(io.Writer) (int, error) {
+func (writeOnly) WriteTo(io.Writer) (int64, error) {
 	return 0, ErrPermission
 }
